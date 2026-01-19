@@ -2,6 +2,110 @@
 
 **Canadian Parliament member analytics with voting participation, activity metrics, and comparative analysis.**
 
+## Data Source
+
+This project uses data from **[xBill - Parliamentary Tracker](https://xbill.ca/)**, which scrapes data from the House of Commons website every few hours. xBill provides comprehensive parliamentary data including bills, votes, debates, member profiles, and more.
+
+- **Website**: https://xbill.ca/
+- **API Documentation**: https://xbill.ca/api-docs
+- **Data Coverage**: Bills, votes, vote casts, member profiles, interventions (debates), committee work
+
+---
+
+## What This Project Does
+
+The Parliament Analytics Dashboard performs three main functions:
+
+1. **Data Extraction (ETL)**: One-time pull of select xBill API data into MongoDB
+	 - Members (profiles, election history, roles, committees)
+	 - Votes and individual member vote casts
+	 - Parliamentary interventions (floor debates)
+	 - Committee interventions
+	 - Bills introduced
+
+2. **Metric Computation**: Generate derived analytics metrics stored in MongoDB
+	 - Voting participation rates
+	 - Activity index scores (composite engagement metric)
+	 - Rankings and percentiles (overall and within-party)
+	 - Comparative statistics by party and province
+
+3. **Web Presentation**: Serve data via REST APIs and interactive HTML/JavaScript visualizations
+	 - Sortable, filterable member table
+	 - Individual member profiles with detailed metrics
+	 - Scatter plot explorer for comparative analysis
+
+**See**: `METRICS_DOCUMENTATION.md` for complete methodology and metric definitions
+
+---
+
+## Web Pages
+
+The dashboard includes two main pages:
+
+### 1. Member List Table (`/`)
+
+**URL**: http://localhost:3001
+
+**Features**:
+- Sortable columns (click header to sort by any metric)
+- Filter by party and province
+- Shows all 343 House members
+- Displays: Name, Party, Province, Presence %, Activity Index, Tenure, Interventions, Committee Work, Bills, Committees, Associations
+- Click any row to view detailed member profile (modal popup)
+
+---
+
+### 2. Scatter Plot Explorer (`/scatter.html`)
+
+**URL**: http://localhost:3001/scatter.html
+
+**Features**:
+- Seven scatter plots comparing tenure against key metrics
+- Interactive zoom and pan
+- Hover on data points to see member details
+- Click data points to open detailed profile modal
+- Color-coded by political party
+
+**Available Charts**:
+1. **Tenure vs Activity Index** — Composite engagement score
+2. **Tenure vs Presence Rate** — Vote participation percentage
+3. **Tenure vs Interventions (Total)** — Floor debates and speeches
+4. **Tenure vs Committee Interventions (Total)** — Committee work
+5. **Tenure vs Bills Sponsored** — Legislative initiative
+6. **Tenure vs Committees** — Number of committees serving on
+7. **Tenure vs Associations** — Parliamentary association memberships
+
+---
+
+## Activity Index Methodology
+
+The **Activity Index** is a composite metric (0–10 scale) measuring parliamentary engagement across five dimensions:
+
+| Component | Weight | Description |
+|-----------|--------|-------------|
+| **Interventions** | 33% | Floor debates and speeches (total count) |
+| **Committee Work** | 27% | Committee interventions (total count) |
+| **Bills Sponsored** | 20% | Bills sponsored in current session |
+| **Committees** | 13% | Number of committees currently serving on |
+| **Associations** | 7% | Parliamentary associations/groups |
+
+**Calculation**: Each component is normalized against the cohort average, capped at its weight, then summed and scaled to 0–10.
+
+**Example**:
+```
+Member with 84 interventions (avg: 18.3)
+→ 84 / 18.3 = 4.59 × 0.33 = capped at 0.33
+(Repeat for other components, sum, multiply by 10)
+→ Final score: 8.5/10
+```
+
+**Design Rationale**:
+- Uses **total counts** (not per-month) to recognize sustained output
+- Relative scoring contextualizes performance against peers
+- Removed presence rate from formula (voting attendance alone doesn't reflect legislative initiative)
+
+**See**: `METRICS_DOCUMENTATION.md` for complete methodology, design decisions, and all metric definitions
+
 ---
 
 ## Quick Start
@@ -58,42 +162,6 @@ npm run etl
 # Parliament Analytics Dashboard
 
 **Canadian Parliament member analytics with voting participation, activity metrics, and comparative analysis.**
-
----
-
-## Data Source
-
-This project uses data from **[xBill - Parliamentary Tracker](https://xbill.ca/)**, which scrapes data from the House of Commons website every few hours. xBill provides comprehensive parliamentary data including bills, votes, debates, member profiles, and more.
-
-- **Website**: https://xbill.ca/
-- **API Documentation**: https://xbill.ca/api-docs
-- **Data Coverage**: Bills, votes, vote casts, member profiles, interventions (debates), committee work
-
----
-
-## What This Project Does
-
-The Parliament Analytics Dashboard performs three main functions:
-
-1. **Data Extraction (ETL)**: One-time pull of select xBill API data into MongoDB
-	 - Members (profiles, election history, roles, committees)
-	 - Votes and individual member vote casts
-	 - Parliamentary interventions (floor debates)
-	 - Committee interventions
-	 - Bills introduced
-
-2. **Metric Computation**: Generate derived analytics metrics stored in MongoDB
-	 - Voting participation rates
-	 - Activity index scores (composite engagement metric)
-	 - Rankings and percentiles (overall and within-party)
-	 - Comparative statistics by party and province
-
-3. **Web Presentation**: Serve data via REST APIs and interactive HTML/JavaScript visualizations
-	 - Sortable, filterable member table
-	 - Individual member profiles with detailed metrics
-	 - Scatter plot explorer for comparative analysis
-
-**See**: `METRICS_DOCUMENTATION.md` for complete methodology and metric definitions
 
 ---
 
@@ -207,76 +275,6 @@ npm run compute
 
 # Browse to http://localhost:3001
 ```
-
----
-
-## Web Pages
-
-The dashboard includes two main pages:
-
-### 1. Member List Table (`/`)
-
-**URL**: http://localhost:3001
-
-**Features**:
-- Sortable columns (click header to sort by any metric)
-- Filter by party and province
-- Shows all 343 House members
-- Displays: Name, Party, Province, Presence %, Activity Index, Tenure, Interventions, Committee Work, Bills, Committees, Associations
-- Click any row to view detailed member profile (modal popup)
-
----
-
-### 2. Scatter Plot Explorer (`/scatter.html`)
-
-**URL**: http://localhost:3001/scatter.html
-
-**Features**:
-- Seven scatter plots comparing tenure against key metrics
-- Interactive zoom and pan
-- Hover on data points to see member details
-- Click data points to open detailed profile modal
-- Color-coded by political party
-
-**Available Charts**:
-1. **Tenure vs Activity Index** — Composite engagement score
-2. **Tenure vs Presence Rate** — Vote participation percentage
-3. **Tenure vs Interventions (Total)** — Floor debates and speeches
-4. **Tenure vs Committee Interventions (Total)** — Committee work
-5. **Tenure vs Bills Sponsored** — Legislative initiative
-6. **Tenure vs Committees** — Number of committees serving on
-7. **Tenure vs Associations** — Parliamentary association memberships
-
----
-
-## Activity Index Methodology
-
-The **Activity Index** is a composite metric (0–10 scale) measuring parliamentary engagement across five dimensions:
-
-| Component | Weight | Description |
-|-----------|--------|-------------|
-| **Interventions** | 33% | Floor debates and speeches (total count) |
-| **Committee Work** | 27% | Committee interventions (total count) |
-| **Bills Sponsored** | 20% | Bills sponsored in current session |
-| **Committees** | 13% | Number of committees currently serving on |
-| **Associations** | 7% | Parliamentary associations/groups |
-
-**Calculation**: Each component is normalized against the cohort average, capped at its weight, then summed and scaled to 0–10.
-
-**Example**:
-```
-Member with 84 interventions (avg: 18.3)
-→ 84 / 18.3 = 4.59 × 0.33 = capped at 0.33
-(Repeat for other components, sum, multiply by 10)
-→ Final score: 8.5/10
-```
-
-**Design Rationale**:
-- Uses **total counts** (not per-month) to recognize sustained output
-- Relative scoring contextualizes performance against peers
-- Removed presence rate from formula (voting attendance alone doesn't reflect legislative initiative)
-
-**See**: `METRICS_DOCUMENTATION.md` for complete methodology, design decisions, and all metric definitions
 
 ---
 
