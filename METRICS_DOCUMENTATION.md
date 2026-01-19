@@ -2,15 +2,7 @@
 
 This document describes all computed metrics for parliamentary members, including data sources, calculation methodologies, and interpretation guidance.
 
----
-
-## Overview
-
 The Parliament Analytics Dashboard computes derived metrics from raw xBill API data to enable comparative analysis of House of Commons members. All metrics are stored in MongoDB's `member_stats` collection and served via REST APIs.
-
-**Computation trigger**: `POST /api/compute/session/:parliament/:session`  
-**Storage**: MongoDB `member_stats` collection (343 House members for Parliament 45, Session 1)  
-**Access**: `GET /api/metrics/members` and `GET /api/metrics/member/:personId`
 
 ---
 
@@ -366,22 +358,6 @@ curl "http://localhost:3001/api/metrics/member/3306?parliament=45&session=1"
 3. **Role differences**: Leaders (whips, cabinet) may have suppressed metrics but high influence
 4. **Data lag**: xBill scrapes OurCommons "every few hours"; not real-time
 5. **Session variation**: Comparing across sessions requires normalizing for session length
-
-### Future Enhancements
-- Bill passage success rate (introduced vs. passed)
-- Committee role weighting (chair/vice-chair bonus)
-- Leadership/cabinet role adjustments
-- Sentiment analysis of interventions
-- Vote similarity clustering (faction detection)
-
----
-
-## Change Log
-
-| Version | Date | Changes |
-|---------|------|---------|
-| v1 | Jan 2026 | Initial metrics: presence + basic counts |
-| v2 | Jan 2026 | Activity index introduced; removed presence from composite; switched to total counts |
 
 ---
 

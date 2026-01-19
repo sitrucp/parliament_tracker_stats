@@ -69,99 +69,15 @@ The dashboard includes two main pages:
 **Available Charts**:
 1. **Tenure vs Activity Index** — Composite engagement score
 2. **Tenure vs Presence Rate** — Vote participation percentage
-3. **Tenure vs Interventions (Total)** — Floor debates and speeches
-4. **Tenure vs Committee Interventions (Total)** — Committee work
+3. **Tenure vs House Intervention Counts (Total)** — Floor debates and speeches
+4. **Tenure vs Committee Intervention Counts (Total)** — Committee interventions
 5. **Tenure vs Bills Sponsored** — Legislative initiative
 6. **Tenure vs Committees** — Number of committees serving on
 7. **Tenure vs Associations** — Parliamentary association memberships
 
 ---
 
-## Activity Index Methodology
-
-The **Activity Index** is a composite metric (0–10 scale) measuring parliamentary engagement across five dimensions:
-
-| Component | Weight | Description |
-|-----------|--------|-------------|
-| **Interventions** | 33% | Floor debates and speeches (total count) |
-| **Committee Work** | 27% | Committee interventions (total count) |
-| **Bills Sponsored** | 20% | Bills sponsored in current session |
-| **Committees** | 13% | Number of committees currently serving on |
-| **Associations** | 7% | Parliamentary associations/groups |
-
-**Calculation**: Each component is normalized against the cohort average, capped at its weight, then summed and scaled to 0–10.
-
-**Example**:
-```
-Member with 84 interventions (avg: 18.3)
-→ 84 / 18.3 = 4.59 × 0.33 = capped at 0.33
-(Repeat for other components, sum, multiply by 10)
-→ Final score: 8.5/10
-```
-
-**Design Rationale**:
-- Uses **total counts** (not per-month) to recognize sustained output
-- Relative scoring contextualizes performance against peers
-- Removed presence rate from formula (voting attendance alone doesn't reflect legislative initiative)
-
 **See**: `METRICS_DOCUMENTATION.md` for complete methodology, design decisions, and all metric definitions
-
----
-
-## Quick Start
-
-### Prerequisites
-- Node.js 16+ and npm
-- MongoDB running locally on `mongodb://localhost:27017`
-- Network access to xBill API (`https://xbill.ca/api`)
-
-### Installation
-
-```bash
-npm install
-```
-
----
-
-## Three-Step Workflow
-
-### 1. Start Server (Run First)
-
-Launch the Express API server and web UI:
-
-```bash
-npm start
-```
-
-**What it serves:**
-- Web UI: http://localhost:3001
-- APIs: `GET /api/metrics/members`, `GET /api/metrics/member/:personId`
-- Compute endpoint: `POST /api/compute/session/:parliament/:session`
-
-**Pages:**
-- `/` — Member list table (sortable, filterable)
-- `/member.html` — Individual member profile
-- `/quadrant.html` — Scatter plot explorer
-
-**Note:** Keep this terminal running. Open a new terminal for steps 2 and 3.
-
----
-
-### 2. Run ETL (Extract, Transform, Load)
-
-Fetch fresh data from xBill API and populate MongoDB:
-
-```bash
-npm run etl
-```
-
-**What it does:**
-- Syncs members, votes, vote casts, bills, interventions, and committee interventions
-- Filters to House members only (excludes Senate)
-- Handles rate limiting with automatic backoff
-# Parliament Analytics Dashboard
-
-**Canadian Parliament member analytics with voting participation, activity metrics, and comparative analysis.**
 
 ---
 
@@ -174,22 +90,6 @@ npm run etl
 | **Data Source** | xBill REST API |
 | **Frontend** | HTML5, JavaScript, Chart.js |
 | **Visualization** | Chart.js with zoom/pan plugins |
-
----
-
-## Prerequisites
-
-- **Node.js** 16+ and npm
-- **MongoDB** running locally on `mongodb://localhost:27017`
-- **Network access** to xBill API (`https://xbill.ca/api`)
-
----
-
-## Installation
-
-```bash
-npm install
-```
 
 ---
 
@@ -258,26 +158,6 @@ PARLIAMENT=45 SESSION=1 SERVER_URL=http://localhost:3001 npm run compute
 
 ---
 
-## Complete Setup Example
-
-```bash
-# First time setup
-npm install
-
-# Terminal 1: Start the server (keep running)
-npm start
-
-# Terminal 2: Run ETL to fetch data (in a new terminal)
-npm run etl
-
-# Terminal 2: After ETL completes, compute stats
-npm run compute
-
-# Browse to http://localhost:3001
-```
-
----
-
 ## Project Structure
 
 ```
@@ -300,171 +180,6 @@ parliament-dashboard/
 				├── DEVELOPMENT_ROADMAP.md
 				└── MEMBER_STATS_SCHEMA.md
 ```
-
----
-
-## API Reference
-
-### GET /api/metrics/members
-
-List all members with computed metrics.
-
-**Query params:**
-- `parliament` (default: 45)
-- `session` (default: 1)
-- `party` (optional filter)
-- `province` (optional filter)
-- `sort` (optional: activity_index_score, presence_rate, etc.)
-- `limit` (default: 500)
-
-**Example:**
-```bash
-curl "http://localhost:3001/api/metrics/members?parliament=45&session=1&limit=10&sort=activity_index_score"
-```
-
-**Response:**
-```json
-{
-	"parliament": "45",
-	"session": "1",
-	"count": 10,
-	"members": [
-		{
-			"person_id": "3306",
-			"name": "Dan Mazier",
-			"party": "Conservative",
-			"presence_rate": "100.0",
-			"activity_index_score": "10.00",
-			"interventions_count": 84
-		}
-		// ... 9 more
-	]
-}
-```
-
----
-
-### GET /api/metrics/member/:personId
-
-Get detailed profile for a single member.
-
-**Query params:**
-- `parliament` (default: 45)
-- `session` (default: 1)
-
-**Example:**
-```bash
-curl "http://localhost:3001/api/metrics/member/3306?parliament=45&session=1"
-```
-
-**Response**: Full member stats document with party/province comparisons
-
----
-
-### POST /api/compute/session/:parliament/:session
-
-Trigger member stats computation (called by `npm run compute`).
-
-**Example:**
-```bash
-curl -X POST "http://localhost:3001/api/compute/session/45/1"
-```
-
-**Response:**
-```json
-{
-	"parliament": "45",
-	"session": "1",
-	"votes_processed": 59,
-	"member_vote_records": 24861,
-	"member_stats_upserts": 343,
-	"vote_stats_upserts": 59
-}
-```
-
----
-
-## Configuration
-
-### MongoDB Connection
-
-Default: `mongodb://localhost:27017/xbill`
-
-Override via environment:
-```bash
-MONGO_URL=mongodb://localhost:27017 DB_NAME=xbill npm run etl
-```
-
-### Parliament/Session
-
-Default: Parliament 45, Session 1
-
-Override:
-```bash
-PARLIAMENT=44 SESSION=2 npm run etl
-PARLIAMENT=44 SESSION=2 npm run compute
-```
-
----
-
-## Troubleshooting
-
-### Port 3001 already in use
-
-**Error:** `EADDRINUSE: address already in use :::3001`
-
-**Fix:** Stop any existing node processes:
-```bash
-# Windows PowerShell
-Get-Process -Name node | Stop-Process -Force
-
-# Linux/Mac
-pkill node
-```
-
-Then run `npm start` again.
-
----
-
-### ETL fails with 429 errors
-
-**Expected:** Some rate limiting is normal; ETL handles it with backoff.
-
-**If persistent:** Wait a few minutes and re-run `npm run etl`. Incremental cursors will resume where it left off.
-
----
-
-### Compute returns connection error
-
-**Error:** `request to http://localhost:3001/api/compute/session/45/1 failed`
-
-**Fix:** Make sure server is running with `npm start` in a separate terminal before running `npm run compute`.
-
----
-
-### Compute returns 500 error
-
-**Likely cause:** No data in MongoDB yet.
-
-**Fix:** Run `npm run etl` first to populate data.
-
----
-
-### Member stats show old data
-
-**Fix:** Re-run `npm run compute` to refresh analytics from current MongoDB data.
-
----
-
-## Development
-
-### Run server with auto-reload
-
-```bash
-npm run dev
-```
-
-Uses nodemon to restart server on file changes.
 
 ---
 
@@ -493,9 +208,3 @@ ISC
 Issues and pull requests welcome on GitHub.
 
 ---
-
-## Documentation
-
-- **METRICS_DOCUMENTATION.md** — Complete metric definitions, calculation methodologies, and API usage
-- **archive/docs/ACTIVITY_INDEX_METHODOLOGY.md** — Detailed activity index formula evolution and design rationale
-- **archive/docs/DEVELOPMENT_ROADMAP.md** — Project phases, architecture, and implementation notes
