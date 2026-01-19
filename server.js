@@ -1124,7 +1124,7 @@ async function main() {
                     lines.push(line);
                 }
 
-                const filename = `members_p${String(parliament)}_s${String(session)}.csv`;
+                const filename = `house_members_data_p${String(parliament)}_s${String(session)}.csv`;
                 res.setHeader('Content-Type', 'text/csv');
                 res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
                 res.status(200).send(lines.join('\n'));
