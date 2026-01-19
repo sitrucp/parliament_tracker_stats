@@ -1058,9 +1058,15 @@ async function main() {
                 const stats = await db.collection("member_stats").find({ parliament: String(parliament), session: String(session) }).toArray();
                 const byPid = new Map(stats.map(s => [String(s.person_id), s]));
 
-                // Fetch members for those person_ids
+                // Fetch members for those person_ids (House only - match member_stats)
                 const pids = Array.from(byPid.keys()).map(pid => isNaN(Number(pid)) ? pid : Number(pid));
-                const members = await db.collection("members").find({ person_id: { $in: pids } }).toArray();
+                const members = await db.collection("members").find({ 
+                    person_id: { $in: pids },
+                    $or: [
+                        { chamber: { $regex: "^house$", $options: "i" } },
+                        { chamber: { $exists: false } }  // Default to house if chamber not specified
+                    ]
+                }).toArray();
                 const membersByPid = new Map(members.map(m => [String(m.person_id), m]));
 
                 // Build merged rows (member fields + stats fields)
