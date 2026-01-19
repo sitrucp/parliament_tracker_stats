@@ -168,32 +168,53 @@ async function main() {
                     const chamberLower = (m.chamber || '').toLowerCase();
                     const isSenate = chamberLower === 'senate';
                     
-                    // DEBUG: Log first member's election_history
-                    if (m.person_id === '89156') {
-                        console.log(`[DEBUG] Member 89156 has election_history: ${!!m.election_history}`);
-                        if (m.election_history) {
-                            console.log(`[DEBUG] Election history count: ${m.election_history.length}`);
-                            console.log(`[DEBUG] First election:`, m.election_history[0]);
-                        }
-                    }
                     
-                    // Tenure calculation from earliest election in election_history (the actual date they became an MP)
-                    // This captures the entire duration as an MP across all parliaments
+                    // Tenure calculation: Sum of all service periods (handles defeats/gaps)
+                    // Members may have multiple service periods separated by defeats
                     let tenureMonths = 0;
-                    let tenureStartDate = null;
+                    let tenureStartDate = null; // First ever elected date for reference
+                    let servicePeriods = []; // Declare at function scope for vote filtering
                     
                     if (m.election_history && Array.isArray(m.election_history) && m.election_history.length > 0) {
-                        // Find earliest election where they were elected (not defeated)
-                        const electionDates = m.election_history
-                            .filter(e => e.election_result_type && 
-                                        (e.election_result_type.toLowerCase().includes('elected') || 
-                                         e.election_result_type.toLowerCase().includes('acclaimed')))
-                            .map(e => e.election_date ? new Date(e.election_date) : null)
-                            .filter(d => d !== null);
+                        // Sort elections chronologically (oldest first)
+                        const sortedElections = m.election_history
+                            .filter(e => e.election_date)
+                            .sort((a, b) => new Date(a.election_date) - new Date(b.election_date));
                         
-                        if (electionDates.length > 0) {
-                            tenureStartDate = new Date(Math.min(...electionDates.map(d => d.getTime())));
-                            tenureMonths = Math.floor((now - tenureStartDate) / (30.44 * 24 * 60 * 60 * 1000));
+                        // Calculate service periods: each sequence of elected/acclaimed ends with defeat or present
+                        let currentPeriodStart = null;
+                        
+                        for (let i = 0; i < sortedElections.length; i++) {
+                            const election = sortedElections[i];
+                            const resultType = (election.election_result_type || '').toLowerCase();
+                            const isElected = resultType.includes('elected') || resultType.includes('acclaimed');
+                            const isDefeated = resultType.includes('defeat');
+                            
+                            if (isElected && !currentPeriodStart) {
+                                // Start of a new service period
+                                currentPeriodStart = new Date(election.election_date);
+                            } else if (isDefeated && currentPeriodStart) {
+                                // End of current service period (they lost their seat)
+                                const periodEnd = new Date(election.election_date);
+                                servicePeriods.push({ start: currentPeriodStart, end: periodEnd });
+                                currentPeriodStart = null;
+                            }
+                        }
+                        
+                        // If still in a service period (no defeat after last election), it extends to now
+                        if (currentPeriodStart) {
+                            servicePeriods.push({ start: currentPeriodStart, end: now });
+                        }
+                        
+                        // Sum all service periods
+                        tenureMonths = servicePeriods.reduce((total, period) => {
+                            const months = Math.floor((period.end - period.start) / (30.44 * 24 * 60 * 60 * 1000));
+                            return total + months;
+                        }, 0);
+                        
+                        // Track earliest date for reference
+                        if (servicePeriods.length > 0) {
+                            tenureStartDate = servicePeriods[0].start;
                         }
                     }
                     
@@ -247,7 +268,8 @@ async function main() {
                         associations_count: uniqueAssociations,  // Count unique associations
                         api_debate_count: debateCount,  // From xBill aggregates
                         api_committee_count: committeeCount,  // From xBill aggregates
-                        api_bills_sponsored: billsSponsored  // From xBill
+                        api_bills_sponsored: billsSponsored,  // From xBill
+                        servicePeriods: servicePeriods  // Service periods for vote filtering
                     }];
                 }));
                 
@@ -273,7 +295,7 @@ async function main() {
                 for (const vote of votes) {
                     const division = vote.division_number;
                     const vDocId = vote._id;
-                    const vDate = vote.date || vote.voted_at || vote.timestamp || undefined;
+                    const vDate = vote.decision_event_datetime || vote.date || vote.voted_at || vote.timestamp || undefined;
 
                     const casts = await db.collection("vote_casts").find({
                         parliament: pStr,
@@ -347,6 +369,7 @@ async function main() {
                 }
 
                 // Compute member_stats from member_vote_records (House members only)
+                // Filter votes by service periods: only count votes during active service
                 const agg = await db.collection("member_vote_records").aggregate([
                     { $match: { parliament: pStr, session: sStr } },
                     { $group: {
@@ -356,9 +379,44 @@ async function main() {
                         present: { $sum: { $cond: [{ $eq: ["$status", "present"] }, 1, 0] } },
                         paired: { $sum: { $cond: [{ $eq: ["$status", "paired"] }, 1, 0] } },
                         absent: { $sum: { $cond: [{ $eq: ["$status", "absent"] }, 1, 0] } },
-                        total_votes: { $sum: 1 }
+                        total_votes: { $sum: 1 },
+                        votes: { $push: { date: "$date", status: "$status" } }
                     } }
                 ]).toArray();
+
+                // Helper function to check if date falls within service periods
+                const isDateInServicePeriod = (voteDate, servicePeriods) => {
+                    if (!voteDate || !servicePeriods || servicePeriods.length === 0) return true; // No date or no service periods = include
+                    const vDate = new Date(voteDate);
+                    return servicePeriods.some(period => vDate >= period.start && vDate <= period.end);
+                };
+
+                // Post-process aggregation: filter votes by service period for each member
+                const filteredAgg = agg.map(row => {
+                    const pid = String(row._id);
+                    const memberMeta = membersMap.get(pid);
+                    const servicePeriods = memberMeta?.servicePeriods || [];
+                    
+                    // Filter votes by service period
+                    const votesInService = (row.votes || []).filter(v => isDateInServicePeriod(v.date, servicePeriods));
+                    
+                    const presentInService = votesInService.filter(v => v.status === 'present').length;
+                    const pairedInService = votesInService.filter(v => v.status === 'paired').length;
+                    const absentInService = votesInService.filter(v => v.status === 'absent').length;
+                    const totalInService = votesInService.length;
+                    
+
+                    
+                    return {
+                        _id: row._id,
+                        name: row.name,
+                        party: row.party,
+                        present: presentInService,
+                        paired: pairedInService,
+                        absent: absentInService,
+                        total_votes: totalInService
+                    };
+                });
 
                 // Use counts from members collection (already provided by xBill API)
                 // No need to aggregate MongoDB collections when API provides accurate counts
@@ -366,7 +424,7 @@ async function main() {
 
                 // Build base metrics array
                 const baseMetrics = [];
-                for (const row of agg) {
+                for (const row of filteredAgg) {
                     const presenceRate = row.total_votes > 0 ? Number((((row.present + row.paired) / row.total_votes) * 100).toFixed(1)) : 0;
                     const pid = String(row._id);
                     const memberMeta = membersMap.get(pid);
@@ -501,16 +559,6 @@ async function main() {
                 console.log('[COMPUTE] Writing member_stats...');
                 let msUpserts = 0;
                 for (const m of baseMetrics) {
-                    // Debug: print one known member activity index
-                    if (m.person_id === '25524') {
-                        console.log(`[COMPUTE][DEBUG] Member 25524 activity_index_score=${m.activity_index_score}, components:`, {
-                            interventions_per_month: m.interventions_per_month,
-                            committee_per_month: m.committee_per_month,
-                            bills_sponsored_current: m.bills_sponsored_current,
-                            committees_count: m.committees_count,
-                            associations_count: m.associations_count
-                        });
-                    }
                     await db.collection("member_stats").updateOne(
                         { parliament: pStr, session: sStr, person_id: m.person_id },
                         { $set: { ...m, computed_at: new Date(), metrics_version: 'v3' } },

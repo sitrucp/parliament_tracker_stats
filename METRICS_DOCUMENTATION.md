@@ -35,38 +35,58 @@ The Parliament Analytics Dashboard computes derived metrics from raw xBill API d
 ### 1. Voting Participation
 
 #### Presence Rate
-**Formula**: `(present + paired) / total_votes × 100`
+**Formula**: `(present + paired) / applicable_votes × 100`
+
+**Applicable Votes**: Only divisions that occurred during the member's active service periods (excludes votes when member was not serving)
 
 **Components**:
-- `present`: Count of votes where member voted (Yea, Nay, or Abstain)
-- `paired`: Count of votes where member was paired (excused absence)
-- `total_votes`: Total divisions in session (59 for P45/S1)
+- `present`: Count of votes where member voted (Yea, Nay, or Abstain) during service
+- `paired`: Count of votes where member was paired (excused absence) during service
+- `applicable_votes`: Total divisions where member was an MP, based on service periods from election history
 
-**Source**: `vote_casts` collection aggregated by `person_id`
+**Source**: `vote_casts` and `member_vote_records` collections, filtered by `decision_event_datetime` vs. service periods from `members.election_history`
+
+**Service Period Calculation**: 
+- If member has interrupted service (e.g., elected, defeated, re-elected), only votes within those service windows count
+- Votes during defeat/interim periods are excluded from both numerator and denominator
+- Ensures fair comparison between members with continuous vs. interrupted service
 
 **Range**: 0–100%  
-**Typical**: 95–100% (most MPs maintain high presence)
+**Typical**: 95–100% (most MPs maintain high presence during service)
+
+**Example (Real data - P45/S1)**:
+- MP Pierre Poilievre: 2004-06-28 (elected) → 2025-04-28 (defeated) → 2025-08-18 (re-elected) → present
+- Session has 59 total votes; member was serving during 25 of them (April 28 - August 18 gap excluded)
+- Member present for 25 of 25 applicable votes
+- `presence_rate = (25 / 25) × 100 = 100.0%` (was incorrectly 42.4% before service period filtering)
 
 **Ranks computed**:
-- `presence_rank`: Overall rank (1–343)
-- `presence_percentile`: Percentile (0–100)
-- `presence_percentile_in_party`: Percentile within caucus
+- `presence_rate_rank`: Overall rank (1–343)
+- `presence_rate_percentile`: Percentile (0–100)
+- `presence_rate_percentile_in_party`: Percentile within caucus
 
 ---
 
 ### 2. Tenure & Background
 
 #### Tenure (Months)
-**Formula**: `floor((now - earliest_election_date) / (30.44 days))`
+**Formula**: Sum of all service periods where member held a seat
 
 **Source**: `members.election_history` array  
-**Method**: Find earliest election where `election_result_type` includes "elected" or "acclaimed"; calculate months from that date to present.
+**Method**: 
+1. Sort election history chronologically
+2. Identify continuous service periods (sequences of "elected"/"acclaimed" results)
+3. A "defeated" result ends the current service period (member lost seat)
+4. Sum months across all separate service periods
 
-**Fallback**: If no election history, uses `members.from_datetime` (for appointed Senate members; excluded from House analytics)
+**Handles Career Gaps**: Members who were defeated and later re-elected have multiple service periods. Only actual time in Parliament is counted.
 
 **Example**:
-- MP first elected June 28, 2004 → tenure ~258 months (21.5 years)
-- Includes entire parliamentary career across multiple parliaments
+- MP elected 2004 → defeated 2015 = 132 months (Period 1)
+- MP re-elected 2019 → present (2026) = 84 months (Period 2)  
+- **Total tenure**: 216 months (not 264 months from 2004-2026)
+
+**Fallback**: If no election history, uses `members.from_datetime` (for appointed Senate members; excluded from House analytics)
 
 #### Years in House
 **Formula**: `floor(tenure_months / 12)`
@@ -293,8 +313,8 @@ Complete schema for documents in `member_stats` collection:
 
 **Steps**:
 1. Load all raw data (members, votes, vote_casts, interventions, committee_interventions)
-2. Calculate tenure from `election_history` (earliest elected date)
-3. Aggregate vote participation per member (present/paired/absent counts)
+2. Calculate tenure from `election_history`: build service periods (each elected/acclaimed→defeat→re-elected sequence), sum months across all periods
+3. Aggregate vote participation per member, **filtered by service periods**: only count votes (decision_event_datetime) that occurred when member was actively serving
 4. Count interventions and committee interventions per member
 5. Load bills, committees, associations from member profiles
 6. Compute activity index using weighted formula
