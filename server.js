@@ -1048,6 +1048,86 @@ async function main() {
             }
         });
 
+        // EXPORT: Combined members + member_stats as CSV (one row per member)
+        // GET /api/export/members.csv?parliament=45&session=1
+        app.get("/api/export/members.csv", async (req, res) => {
+            try {
+                const { parliament = "45", session = "1" } = req.query;
+
+                // Get all member_stats for the session
+                const stats = await db.collection("member_stats").find({ parliament: String(parliament), session: String(session) }).toArray();
+                const byPid = new Map(stats.map(s => [String(s.person_id), s]));
+
+                // Fetch members for those person_ids
+                const pids = Array.from(byPid.keys()).map(pid => isNaN(Number(pid)) ? pid : Number(pid));
+                const members = await db.collection("members").find({ person_id: { $in: pids } }).toArray();
+                const membersByPid = new Map(members.map(m => [String(m.person_id), m]));
+
+                // Build merged rows (member fields + stats fields)
+                const rows = [];
+                for (const pid of byPid.keys()) {
+                    const m = membersByPid.get(pid) || {};
+                    const s = byPid.get(pid) || {};
+                    // Merge shallowly; JSON-stringify nested structures to fit CSV cells
+                    const merged = {};
+                    const assignShallow = (obj) => {
+                        for (const [k, v] of Object.entries(obj)) {
+                            if (k === "_id") continue; // skip Mongo IDs
+                            if (typeof v === 'object' && v !== null) {
+                                try { merged[k] = JSON.stringify(v); } catch { merged[k] = String(v); }
+                            } else {
+                                merged[k] = v;
+                            }
+                        }
+                    };
+                    assignShallow(m);
+                    assignShallow(s);
+                    // Ensure key identifiers
+                    merged.person_id = String(pid);
+                    merged.parliament = String(parliament);
+                    merged.session = String(session);
+                    rows.push(merged);
+                }
+
+                // Determine CSV headers: prefer a sensible order, then append the rest sorted
+                const preferred = [
+                    'person_id','name','full_name','party','caucus_short_name','province','constituency',
+                    'presence_rate','present','paired','absent','total_votes',
+                    'tenure_months','years_in_house','elections_won',
+                    'interventions_count','committee_interventions_count','bills_sponsored_current',
+                    'committees_count','associations_count',
+                    'activity_index_score','activity_index_rank','activity_index_percentile'
+                ];
+                const allKeys = new Set();
+                rows.forEach(r => Object.keys(r).forEach(k => allKeys.add(k)));
+                const remaining = Array.from(allKeys).filter(k => !preferred.includes(k)).sort();
+                const headers = preferred.concat(remaining);
+
+                // CSV encode helper
+                const csvEscape = (val) => {
+                    if (val === null || val === undefined) return '';
+                    const s = typeof val === 'string' ? val : String(val);
+                    if (/[",\n]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
+                    return s;
+                };
+
+                const lines = [];
+                lines.push(headers.join(','));
+                for (const r of rows) {
+                    const line = headers.map(h => csvEscape(r[h])).join(',');
+                    lines.push(line);
+                }
+
+                const filename = `members_p${String(parliament)}_s${String(session)}.csv`;
+                res.setHeader('Content-Type', 'text/csv');
+                res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+                res.status(200).send(lines.join('\n'));
+            } catch (error) {
+                console.error("Error exporting CSV:", error.message);
+                res.status(500).json({ error: error.message });
+            }
+        });
+
         // Health check endpoint
         app.get("/health", (req, res) => {
             res.json({ status: "ok", timestamp: new Date().toISOString() });
