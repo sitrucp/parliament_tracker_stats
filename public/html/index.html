@@ -1,0 +1,909 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Parliament Analytics - Members Explorer</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: #f5f5f5;
+            color: #333;
+        }
+
+        a {
+            color: #1e40af;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
+            color: white;
+            padding: 30px 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .breadcrumb {
+            font-size: 12px;
+            opacity: 0.8;
+            margin-top: 10px;
+        }
+        
+        .breadcrumb a {
+            color: white;
+            text-decoration: none;
+            transition: opacity 0.2s;
+        }
+        
+        .breadcrumb a:hover {
+            opacity: 1;
+            text-decoration: underline;
+        }
+        
+        .breadcrumb span {
+            margin: 0 5px;
+            opacity: 0.6;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .filters {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+        
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .filter-group label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #666;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .filter-group select {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            background: white;
+            cursor: pointer;
+            transition: border-color 0.2s;
+        }
+        
+        .filter-group select:hover {
+            border-color: #1e40af;
+        }
+        
+        .filter-group select:focus {
+            outline: none;
+            border-color: #1e40af;
+            box-shadow: 0 0 0 3px rgba(30, 64, 175, 0.1);
+        }
+        
+        .table-wrapper {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        
+        .table-header {
+            padding: 15px 20px;
+            border-bottom: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .table-header h2 {
+            font-size: 16px;
+            font-weight: 600;
+        }
+        
+        .table-header .count {
+            font-size: 12px;
+            color: #999;
+        }
+        
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+        
+        .table thead {
+            background: #f9fafb;
+            border-bottom: 2px solid #e5e7eb;
+        }
+        
+        .table th {
+            padding: 8px 10px;
+            text-align: left;
+            font-size: 11px;
+            font-weight: 600;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            user-select: none;
+            white-space: nowrap;
+            background: linear-gradient(to right, #f3f4f6, #f9fafb);
+            transition: background 0.2s;
+        }
+        
+        .table th:hover {
+            background: linear-gradient(to right, #eff2f5, #f5f7fb);
+        }
+        
+        .table th.sortable::after {
+            content: " ⇅";
+            opacity: 0.3;
+            font-size: 10px;
+        }
+        
+        .table th.sorted-asc::after {
+            content: " ↑";
+            opacity: 1;
+        }
+        
+        .table th.sorted-desc::after {
+            content: " ↓";
+            opacity: 1;
+        }
+        
+        .table tbody tr {
+            border-bottom: 1px solid #e5e7eb;
+            transition: background-color 0.2s;
+            cursor: pointer;
+        }
+        
+        .table tbody tr:hover {
+            background-color: #f0f9ff;
+        }
+        
+        .table td {
+            padding: 8px 10px;
+            font-size: 12px;
+            vertical-align: middle;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .table td.name {
+            font-weight: 500;
+            color: #1e40af;
+        }
+        
+        .table td.number {
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+        }
+        
+        .bar-cell {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .bar {
+            height: 20px;
+            background: linear-gradient(to right, #3b82f6, #1e40af);
+            border-radius: 3px;
+            min-width: 80px;
+            position: relative;
+        }
+        
+        .bar-label {
+            font-size: 11px;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+        }
+        
+        .error {
+            background: #fee2e2;
+            color: #991b1b;
+            padding: 15px 20px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            border-left: 4px solid #dc2626;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            animation: fadeIn 0.2s;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        .modal-content {
+            background-color: white;
+            margin: 5% auto;
+            padding: 0;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 1000px;
+            max-height: 85vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
+            animation: slideIn 0.3s;
+        }
+        
+        @keyframes slideIn {
+            from { transform: translateY(-50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        
+        .modal-header {
+            padding: 25px 30px;
+            border-bottom: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
+            color: white;
+        }
+        
+        .modal-header h2 {
+            font-size: 22px;
+            margin-bottom: 5px;
+        }
+        
+        .modal-header .subtitle {
+            font-size: 12px;
+            opacity: 0.8;
+        }
+        
+        .close {
+            color: white;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            background: none;
+            border: none;
+            padding: 0;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+        
+        .close:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+        
+        .modal-body {
+            padding: 30px;
+        }
+        
+        .profile-section {
+            margin-bottom: 30px;
+        }
+        
+        .profile-section h3 {
+            font-size: 14px;
+            font-weight: 600;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e5e7eb;
+        }
+        
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+        }
+        
+        .metric {
+            padding: 15px;
+            background: #f9fafb;
+            border-radius: 6px;
+            border-left: 3px solid #3b82f6;
+        }
+        
+        .metric-label {
+            font-size: 11px;
+            font-weight: 600;
+            color: #999;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 5px;
+        }
+        
+        .metric-value {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1e40af;
+        }
+        
+        .metric-rank {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+        
+        .comparison {
+            background: #f0f9ff;
+            border-left-color: #0284c7;
+        }
+        
+        .vote-breakdown {
+            display: flex;
+            height: 30px;
+            border-radius: 4px;
+            overflow: hidden;
+            background: #e5e7eb;
+        }
+        
+        .vote-breakdown span {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 11px;
+            font-weight: 600;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        }
+        
+        .vote-yes { background: #10b981; }
+        .vote-no { background: #ef4444; }
+        .vote-paired { background: #f59e0b; }
+        
+        @media (max-width: 768px) {
+            .filters {
+                grid-template-columns: 1fr;
+            }
+            
+            .table {
+                font-size: 12px;
+            }
+            
+            .table th, .table td {
+                padding: 8px 10px;
+            }
+            
+            .modal-content {
+                width: 95%;
+                margin: 10% auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🏛️ Parliament Analytics</h1>
+        <p>House Members Activity Table (Parliament 45, Session 1)</p>
+        <div class="breadcrumb">
+            <span>Members Table</span>
+            <span>→</span>
+            <a href="/scatter.html">Tenure vs Activity Scatter Charts</a>
+        </div>
+    </div>
+
+
+    <div class="container">
+        <div class="filters">
+            <div class="filter-group">
+                <label>Caucus (Party)</label>
+                <select id="partyFilter">
+                    <option value="">All Parties</option>
+                    <option value="Liberal">Liberal</option>
+                    <option value="Conservative">Conservative</option>
+                    <option value="Bloc Québécois">Bloc Québécois</option>
+                    <option value="NDP">NDP</option>
+                    <option value="Green Party">Green Party</option>
+                    <option value="Independent">Independent</option>
+                </select>
+            </div>
+
+            <div class="filter-group">
+                <label>Province</label>
+                <select id="provinceFilter">
+                    <option value="">All Provinces</option>
+                    <option value="Ontario">Ontario</option>
+                    <option value="Quebec">Quebec</option>
+                    <option value="British Columbia">British Columbia</option>
+                    <option value="Alberta">Alberta</option>
+                    <option value="Manitoba">Manitoba</option>
+                    <option value="Saskatchewan">Saskatchewan</option>
+                    <option value="Nova Scotia">Nova Scotia</option>
+                    <option value="New Brunswick">New Brunswick</option>
+                    <option value="Prince Edward Island">Prince Edward Island</option>
+                    <option value="Newfoundland and Labrador">Newfoundland and Labrador</option>
+                </select>
+            </div>
+
+            <div class="filter-group">
+                <label>Sort By</label>
+                <select id="sortFilter">
+                    <option value="activity_index_score">Activity Index (High→Low)</option>
+                    <option value="presence_rate">Presence Rate (High→Low)</option>
+                    <option value="interventions_count">House Intrvn (High→Low)</option>
+                    <option value="committee_interventions_count">Cmte Intrvn (High→Low)</option>
+                    <option value="bills_sponsored_current">Bills Sponsored (High→Low)</option>
+                    <option value="committees_count">Committees (High→Low)</option>
+                    <option value="associations_count">Associations (High→Low)</option>
+                    <option value="tenure_months">Tenure (Long→Short)</option>
+                </select>
+            </div>
+            <div class="filter-group" style="justify-content: flex-end;">
+                <button class="reset-btn" onclick="resetAllFilters()">Reset All</button>
+            </div>
+        </div>
+
+        <div class="table-wrapper">
+            <div class="table-header">
+                <h2>Members</h2>
+                <span class="count"><span id="memberCount">0</span> members</span>
+            </div>
+            <div id="tableContainer">
+                <table class="table" id="membersTable">
+                    <colgroup>
+                        <col style="width: 20%">
+                        <col style="width: 10%">
+                        <col style="width: 12%">
+                        <col style="width: 9%">
+                        <col style="width: 9%">
+                        <col style="width: 8%">
+                        <col style="width: 8%">
+                        <col style="width: 8%">
+                        <col style="width: 6%">
+                        <col style="width: 6%">
+                        <col style="width: 6%">
+                    </colgroup>
+                    <thead>
+                        <tr>
+                            <th class="sortable">Name</th>
+                            <th class="sortable">Party</th>
+                            <th class="sortable">Province</th>
+                            <th class="sortable">Presence %</th>
+                            <th class="sortable">Activity Index</th>
+                            <th class="sortable">Tenure</th>
+                            <th class="sortable">House Intrvn</th>
+                            <th class="sortable">Cmte Intrvn</th>
+                            <th class="sortable">Bills</th>
+                            <th class="sortable">Committees</th>
+                            <th class="sortable">Assoc.</th>
+                        </tr>
+                    </thead>
+                    <tbody id="membersTableBody">
+                        <tr><td colspan="11" class="loading">Loading members...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Member Profile Modal -->
+    <div id="profileModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <h2 id="profileName">-</h2>
+                    <div class="subtitle" id="profileSubtitle">-</div>
+                </div>
+                <button class="close">&times;</button>
+            </div>
+            <div class="modal-body" id="profileBody"></div>
+        </div>
+    </div>
+
+    <script>
+        let allMembers = [];
+        let currentSortKey = null;
+        let sortAscending = false;
+
+        const modal = document.getElementById("profileModal");
+        const closeBtn = document.querySelector(".close");
+
+        closeBtn.addEventListener("click", () => {
+            modal.style.display = "none";
+        });
+
+        window.addEventListener("click", (event) => {
+            if (event.target === modal) {
+                modal.style.display = "none";
+            }
+        });
+
+        // Map table header text to sort keys
+        const headerToSortKey = {
+            "Name": "name",
+            "Party": "party",
+            "Province": "province",
+            "Presence %": "presence_rate",
+            "Activity Index": "activity_index_score",
+            "Tenure": "tenure_months",
+            "House Intrvn": "interventions_count",
+            "Cmte Intrvn": "committee_interventions_count",
+            "Bills": "bills_sponsored_current",
+            "Committees": "committees_count",
+            "Assoc.": "associations_count"
+        };
+
+        // Add click handlers to sortable headers
+        function attachHeaderHandlers() {
+            document.querySelectorAll("th.sortable").forEach(header => {
+                header.addEventListener("click", function() {
+                    const headerText = this.textContent.trim();
+                    const sortKey = headerToSortKey[headerText];
+                    
+                    if (!sortKey) return;
+                    
+                    // Toggle sort direction if clicking same header
+                    if (currentSortKey === sortKey) {
+                        sortAscending = !sortAscending;
+                    } else {
+                        currentSortKey = sortKey;
+                        sortAscending = false; // Default to descending
+                    }
+                    
+                    // Update header classes
+                    document.querySelectorAll("th.sortable").forEach(th => {
+                        th.classList.remove("sorted-asc", "sorted-desc");
+                    });
+                    
+                    if (sortAscending) {
+                        this.classList.add("sorted-asc");
+                    } else {
+                        this.classList.add("sorted-desc");
+                    }
+                    
+                    renderTable();
+                });
+            });
+        }
+
+        async function loadMembers() {
+            try {
+                const response = await fetch("/api/metrics/members?parliament=45&session=1&limit=500");
+                const data = await response.json();
+                allMembers = data.members || [];
+                attachHeaderHandlers();
+                renderTable();
+            } catch (error) {
+                console.error("Error loading members:", error);
+                document.getElementById("membersTableBody").innerHTML = 
+                    '<tr><td colspan="11" class="error">Error loading members. Check console.</td></tr>';
+            }
+        }
+
+        function resetAllFilters() {
+            document.getElementById("partyFilter").value = "";
+            document.getElementById("provinceFilter").value = "";
+            document.getElementById("sortFilter").value = "activity_index_score";
+            currentSortKey = null;
+            sortAscending = false;
+            document.querySelectorAll("th.sortable").forEach(th => {
+                th.classList.remove("sorted-asc", "sorted-desc");
+            });
+            renderTable();
+        }
+
+        function renderTable() {
+            const party = document.getElementById("partyFilter").value;
+            const province = document.getElementById("provinceFilter").value;
+
+            const toSentence = (s) => {
+                if (!s) return "";
+                return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
+            };
+            const normalize = (s) => (s || "").toString().trim().toLowerCase();
+            const getPartyRaw = (m) => m.caucus_short || m.caucus_short_name || m.party || m.caucus || "";
+            const getParty = (m) => getPartyRaw(m);
+            const getPartyDisplay = (m) => {
+                const raw = getPartyRaw(m);
+                if (normalize(raw) === "ndp") return "NDP";
+                // Keep original casing for accent-sensitive names like Bloc Québécois
+                return raw || "";
+            };
+            const getProvince = (m) => m.province || m.constituency_province_territory || m.constituency_province || "";
+            const getTenureMonths = (m) => m.tenure_months ?? 0;
+            const getInterventions = (m) => m.interventions_count ?? 0;
+            const getCommitteeInterventions = (m) => m.committee_interventions_count ?? 0;
+            const formatTenure = (months) => {
+                const years = (months / 12);
+                return `${months}`;
+            };
+
+            let filtered = allMembers.filter(m => {
+                if (party && getParty(m) !== party) return false;
+                if (province && normalize(getProvince(m)) !== normalize(province)) return false;
+                return true;
+            });
+
+            // Apply sorting
+            if (currentSortKey) {
+                filtered = filtered.sort((a, b) => {
+                    let aVal, bVal;
+                    
+                    switch (currentSortKey) {
+                        case "name":
+                            aVal = (a.name || a.full_name || "").toLowerCase();
+                            bVal = (b.name || b.full_name || "").toLowerCase();
+                            break;
+                        case "party":
+                            aVal = getParty(a).toLowerCase();
+                            bVal = getParty(b).toLowerCase();
+                            break;
+                        case "province":
+                            aVal = getProvince(a).toLowerCase();
+                            bVal = getProvince(b).toLowerCase();
+                            break;
+                        case "activity_index_score":
+                            aVal = parseFloat(a.activity_index_score) ?? 0;
+                            bVal = parseFloat(b.activity_index_score) ?? 0;
+                            break;
+                        case "presence_rate":
+                            aVal = parseFloat(a.presence_rate) ?? 0;
+                            bVal = parseFloat(b.presence_rate) ?? 0;
+                            break;
+                        case "interventions_count":
+                            aVal = getInterventions(a);
+                            bVal = getInterventions(b);
+                            break;
+                        case "committee_interventions_count":
+                            aVal = getCommitteeInterventions(a);
+                            bVal = getCommitteeInterventions(b);
+                            break;
+                        case "bills_sponsored_current":
+                            aVal = a.bills_sponsored_current ?? 0;
+                            bVal = b.bills_sponsored_current ?? 0;
+                            break;
+                        case "committees_count":
+                            aVal = a.committees_count ?? 0;
+                            bVal = b.committees_count ?? 0;
+                            break;
+                        case "associations_count":
+                            aVal = a.associations_count ?? 0;
+                            bVal = b.associations_count ?? 0;
+                            break;
+                        case "tenure_months":
+                            aVal = getTenureMonths(a);
+                            bVal = getTenureMonths(b);
+                            break;
+                        default:
+                            aVal = 0;
+                            bVal = 0;
+                    }
+                    
+                    // Handle string comparisons
+                    if (typeof aVal === "string" && typeof bVal === "string") {
+                        return sortAscending ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+                    }
+                    
+                    // Handle numeric comparisons
+                    return sortAscending ? aVal - bVal : bVal - aVal;
+                });
+            }
+
+            document.getElementById("memberCount").textContent = filtered.length;
+
+            const tbody = document.getElementById("membersTableBody");
+            tbody.innerHTML = filtered.map(m => `
+                <tr onclick="showProfile('${m.person_id}')">
+                    <td class="name">${m.name || m.full_name || m.person_name || `${m.first_name || ''} ${m.last_name || ''}`.trim()}</td>
+                    <td>${getPartyDisplay(m)}</td>
+                    <td>${getProvince(m)}</td>
+                    <td class="number">${m.presence_rate ?? 0}</td>
+                    <td class="number">${m.activity_index_score ?? 0}</td>
+                    <td class="number">${formatTenure(getTenureMonths(m))}</td>
+                    <td class="number">${getInterventions(m)}</td>
+                    <td class="number">${getCommitteeInterventions(m)}</td>
+                    <td class="number">${m.bills_sponsored_current ?? ''}</td>
+                    <td class="number">${m.committees_count ?? 0}</td>
+                    <td class="number">${m.associations_count ?? 0}</td>
+                </tr>
+            `).join("");
+        }
+
+        async function showProfile(personId) {
+            try {
+                const response = await fetch(`/api/metrics/member/${personId}?parliament=45&session=1`);
+                const data = await response.json();
+                const m = data.member;
+                const c = data.comparisons;
+
+                // Provide defaults for missing fields
+                const presenceRank = m.presence_rank ?? 'N/A';
+                const presencePercentile = m.presence_percentile ?? 'N/A';
+                const presencePercentileParty = m.presence_percentile_in_party ?? 'N/A';
+                const activityRank = m.activity_index_rank ?? 'N/A';
+                const activityPercentile = m.activity_index_percentile ?? 'N/A';
+                const activityPercentileParty = m.activity_index_percentile_in_party ?? 'N/A';
+                const committeesCount = m.committees_current ?? 'N/A';
+                const electionsWon = m.elections_won ?? 'N/A';
+
+                document.getElementById("profileName").textContent = m.name;
+                document.getElementById("profileSubtitle").textContent = 
+                    `${m.party} • ${m.province} • ${m.constituency}`;
+
+                const profileBody = document.getElementById("profileBody");
+                
+                // Build vote breakdown only if we have vote data
+                let voteBreakdownHTML = 'N/A';
+                if (m.total_votes && m.total_votes > 0) {
+                    const presentPct = (m.present / m.total_votes * 100).toFixed(0);
+                    const absentPct = (m.absent / m.total_votes * 100).toFixed(0);
+                    const pairedPct = (m.paired / m.total_votes * 100).toFixed(0);
+                    voteBreakdownHTML = `
+                        <div class="vote-breakdown">
+                            <span class="vote-yes" style="width: ${presentPct}%">${m.present}</span>
+                            <span class="vote-no" style="width: ${absentPct}%">${m.absent}</span>
+                            <span class="vote-paired" style="width: ${pairedPct}%">${m.paired}</span>
+                        </div>
+                        <div class="metric-rank" style="margin-top: 5px;">Present | Absent | Paired</div>
+                    `;
+                }
+
+                profileBody.innerHTML = `
+                    <div class="profile-section">
+                        <h3>Voting Performance</h3>
+                        <div class="metrics-grid">
+                            <div class="metric">
+                                <div class="metric-label">Presence Rate</div>
+                                <div class="metric-value">${m.presence_rate ?? 'N/A'}%</div>
+                                <div class="metric-rank">Rank: #${presenceRank}/343 (${presencePercentile}th percentile)</div>
+                                <div class="metric-rank">In party: ${presencePercentileParty}th percentile</div>
+                            </div>
+                            <div class="metric">
+                                <div class="metric-label">Vote Breakdown</div>
+                                <div style="margin-top: 10px;">
+                                    ${voteBreakdownHTML}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="profile-section">
+                        <h3>Activity & Engagement</h3>
+                        <div class="metrics-grid">
+                            <div class="metric">
+                                <div class="metric-label">Activity Index</div>
+                                <div class="metric-value">${m.activity_index_score ?? 'N/A'}/10</div>
+                                <div class="metric-rank">Rank: #${activityRank}/343 (${activityPercentile}th percentile)</div>
+                                <div class="metric-rank">In party: ${activityPercentileParty}th percentile</div>
+                            </div>
+                            <div class="metric">
+                                <div class="metric-label">House Intrvn</div>
+                                <div class="metric-value">${m.interventions_count ?? 'N/A'}</div>
+                                <div class="metric-rank">Per month: ${m.interventions_per_month ?? 'N/A'}</div>
+                            </div>
+                            <div class="metric">
+                                <div class="metric-label">Committee Intrvn</div>
+                                <div class="metric-value">${m.committee_interventions_count ?? 'N/A'}</div>
+                                <div class="metric-rank">Per month: ${m.committee_per_month ?? 'N/A'}</div>
+                            </div>
+                            <div class="metric">
+                                <div class="metric-label">Bills Sponsored</div>
+                                <div class="metric-value">${m.bills_sponsored_current ?? 'N/A'}</div>
+                                <div class="metric-rank">Current session</div>
+                            </div>
+                            <div class="metric">
+                                <div class="metric-label">Committees</div>
+                                <div class="metric-value">${committeesCount}</div>
+                                <div class="metric-rank">Currently serving</div>
+                            </div>
+                            <div class="metric">
+                                <div class="metric-label">Associations</div>
+                                <div class="metric-value">${m.associations_count ?? 'N/A'}</div>
+                                <div class="metric-rank">Parliamentary groups</div>
+                            </div>
+                            <div class="metric">
+                                <div class="metric-label">Tenure</div>
+                                <div class="metric-value">${m.years_in_house ?? 'N/A'}</div>
+                                <div class="metric-rank">${m.tenure_months ?? 'N/A'} months • ${electionsWon} elections</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="profile-section">
+                        <h3>Comparison to Peers</h3>
+                        <div class="metrics-grid">
+                            <div class="metric comparison">
+                                <div class="metric-label">${c.party.name ?? 'Party'} Party Average</div>
+                                <div style="margin-top: 10px;">
+                                    <div class="metric-rank">Presence: ${c.party.avg_presence_rate ?? 'N/A'}%</div>
+                                    <div class="metric-rank">Activity: ${c.party.avg_activity_index_score ?? 'N/A'}/10</div>
+                                    <div class="metric-rank">Size: ${c.party.size ?? 'N/A'} members</div>
+                                </div>
+                                <div style="margin-top: 10px; font-size: 12px; font-weight: 500;">
+                                    <div style="color: ${c.party.member_above_party_presence ? '#10b981' : '#ef4444'}">
+                                        ${c.party.member_above_party_presence ? '✓' : '✗'} Above party presence average
+                                    </div>
+                                    <div style="color: ${c.party.member_above_party_activity ? '#10b981' : '#ef4444'}">
+                                        ${c.party.member_above_party_activity ? '✓' : '✗'} Above party activity average
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="metric comparison">
+                                <div class="metric-label">${c.province.name ?? 'Province'} Province Average</div>
+                                <div style="margin-top: 10px;">
+                                    <div class="metric-rank">Activity: ${c.province.avg_activity_index_score ?? 'N/A'}/10</div>
+                                    <div class="metric-rank">Size: ${c.province.size ?? 'N/A'} members</div>
+                                </div>
+                                <div style="margin-top: 10px; font-size: 12px; font-weight: 500;">
+                                    <div style="color: ${c.province.member_above_province_activity ? '#10b981' : '#ef4444'}">
+                                        ${c.province.member_above_province_activity ? '✓' : '✗'} Above province activity average
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                modal.style.display = "block";
+            } catch (error) {
+                console.error("Error loading profile:", error);
+                alert("Error loading member profile");
+            }
+        }
+
+        document.getElementById("partyFilter").addEventListener("change", renderTable);
+        document.getElementById("provinceFilter").addEventListener("change", renderTable);
+        document.getElementById("sortFilter").addEventListener("change", renderTable);
+
+        // Load members on page load
+        loadMembers();
+    </script>
+</body>
+</html>

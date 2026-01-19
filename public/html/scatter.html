@@ -1,0 +1,1128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Parliament Analytics - Scatter Plot Explorer</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@1.2.1/dist/chartjs-plugin-zoom.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: #f5f5f5;
+            color: #333;
+        }
+
+        a {
+            color: #1e40af;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        
+        a:hover {
+            text-decoration: underline;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
+            color: white;
+            padding: 30px 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        
+        .breadcrumb {
+            font-size: 12px;
+            opacity: 0.8;
+            margin-top: 10px;
+        }
+        
+        .breadcrumb a {
+            color: white;
+            text-decoration: none;
+            transition: opacity 0.2s;
+        }
+        
+        .breadcrumb a:hover {
+            opacity: 1;
+            text-decoration: underline;
+        }
+        
+        .breadcrumb span {
+            margin: 0 5px;
+            opacity: 0.6;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .filters {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+        
+        .filter-row {
+            margin-bottom: 15px;
+        }
+        
+        .filter-row:last-child {
+            margin-bottom: 0;
+        }
+        
+        .filter-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #666;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .filter-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        
+        .filter-btn {
+            padding: 8px 16px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            background: white;
+            color: #333;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .filter-btn:hover {
+            border-color: #999;
+            background: #f9fafb;
+        }
+        
+        .filter-btn.active {
+            background: #1e40af;
+            color: white;
+            border-color: #1e40af;
+        }
+        
+        .reset-btn {
+            padding: 6px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: white;
+            color: #666;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            transition: all 0.2s;
+        }
+        
+        .reset-btn:hover {
+            background: #fee2e2;
+            color: #dc2626;
+            border-color: #dc2626;
+        }
+        
+        .filter-group select:hover {
+            border-color: #1e40af;
+        }
+        
+        .filter-group select:focus {
+            outline: none;
+            border-color: #1e40af;
+            box-shadow: 0 0 0 3px rgba(30, 64, 175, 0.1);
+        }
+        
+        .chart-wrapper {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+            margin-bottom: 20px;
+        }
+        
+        .chart-header {
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            align-items: flex-start;
+            flex-wrap: wrap;
+        }
+        
+        .chart-header h2 {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+        
+        .chart-header p {
+            font-size: 13px;
+            color: #666;
+        }
+
+        .chart-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .zoom-btn {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            background: white;
+            color: #1e40af;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .zoom-btn:hover {
+            background: #eef2ff;
+            border-color: #1e40af;
+        }
+        
+        .chart-container {
+            position: relative;
+            width: 100%;
+            height: 600px;
+        }
+        
+        .legend {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #e5e7eb;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+        }
+        
+        .legend-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 12px;
+            color: white;
+            flex-shrink: 0;
+        }
+        
+        .legend-quadrant-1 {
+            background: linear-gradient(135deg, #3b82f6, #1e40af);
+        }
+        
+        .legend-quadrant-2 {
+            background: linear-gradient(135deg, #10b981, #059669);
+        }
+        
+        .legend-quadrant-3 {
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+        }
+        
+        .legend-quadrant-4 {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+        }
+        
+        .legend-text h4 {
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 3px;
+        }
+        
+        .legend-text p {
+            font-size: 12px;
+            color: #666;
+            line-height: 1.4;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            animation: fadeIn 0.2s;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        .modal-content {
+            background-color: white;
+            margin: 5% auto;
+            padding: 0;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 1000px;
+            max-height: 85vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
+            animation: slideIn 0.3s;
+        }
+        
+        @keyframes slideIn {
+            from { transform: translateY(-50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        
+        .modal-header {
+            padding: 25px 30px;
+            border-bottom: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
+            color: white;
+        }
+        
+        .modal-header h2 {
+            font-size: 22px;
+            margin-bottom: 5px;
+        }
+        
+        .modal-header .subtitle {
+            font-size: 12px;
+            opacity: 0.8;
+        }
+        
+        .close {
+            color: white;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            background: none;
+            border: none;
+            padding: 0;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+        
+        .close:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+        
+        .modal-body {
+            padding: 30px;
+        }
+        
+        .profile-section {
+            margin-bottom: 30px;
+        }
+        
+        .profile-section h3 {
+            font-size: 14px;
+            font-weight: 600;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e5e7eb;
+        }
+        
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+        }
+        
+        .metric {
+            padding: 15px;
+            background: #f9fafb;
+            border-radius: 6px;
+            border-left: 3px solid #3b82f6;
+        }
+        
+        .metric-label {
+            font-size: 11px;
+            font-weight: 600;
+            color: #999;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 5px;
+        }
+        
+        .metric-value {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1e40af;
+        }
+        
+        .metric-rank {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+        
+        .comparison {
+            background: #f0f9ff;
+            border-left-color: #0284c7;
+        }
+        
+        .vote-breakdown {
+            display: flex;
+            height: 30px;
+            border-radius: 4px;
+            overflow: hidden;
+            background: #e5e7eb;
+        }
+        
+        .vote-breakdown span {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 11px;
+            font-weight: 600;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        }
+        
+        .vote-yes { background: #10b981; }
+        .vote-no { background: #ef4444; }
+        .vote-paired { background: #f59e0b; }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+        }
+        
+        .error {
+            background: #fee2e2;
+            color: #991b1b;
+            padding: 15px 20px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            border-left: 4px solid #dc2626;
+        }
+        
+        @media (max-width: 768px) {
+            .filters {
+                grid-template-columns: 1fr;
+            }
+            
+            .chart-container {
+                height: 400px;
+            }
+            
+            .legend {
+                grid-template-columns: 1fr;
+            }
+            
+            .modal-content {
+                width: 95%;
+                margin: 10% auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🏛️ Parliament Analytics</h1>
+        <p>Tenure vs Activity Scatter Charts (Parliament 45, Session 1)</p>
+        <div class="breadcrumb">
+            <a href="/">Members Table</a>
+            <span>→</span>
+            <span>Tenure vs Activity Scatter Charts</span>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="filters">
+            <div class="filter-row">
+                <div class="filter-label">
+                    <span>Parties</span>
+                    <button class="reset-btn" onclick="resetPartyFilters()">Reset</button>
+                </div>
+                <div class="filter-buttons" id="partyButtons">
+                    <button class="filter-btn" data-party="Liberal">Liberal</button>
+                    <button class="filter-btn" data-party="Conservative">Conservative</button>
+                    <button class="filter-btn" data-party="Bloc Québécois">Bloc Québécois</button>
+                    <button class="filter-btn" data-party="NDP">NDP</button>
+                    <button class="filter-btn" data-party="Green Party">Green Party</button>
+                    <button class="filter-btn" data-party="Independent">Independent</button>
+                </div>
+            </div>
+            
+            <div class="filter-row">
+                <div class="filter-label">
+                    <span>Provinces</span>
+                    <button class="reset-btn" onclick="resetProvinceFilters()">Reset</button>
+                </div>
+                <div class="filter-buttons" id="provinceButtons">
+                    <button class="filter-btn" data-province="Ontario">Ontario</button>
+                    <button class="filter-btn" data-province="Quebec">Quebec</button>
+                    <button class="filter-btn" data-province="British Columbia">British Columbia</button>
+                    <button class="filter-btn" data-province="Alberta">Alberta</button>
+                    <button class="filter-btn" data-province="Manitoba">Manitoba</button>
+                    <button class="filter-btn" data-province="Saskatchewan">Saskatchewan</button>
+                    <button class="filter-btn" data-province="Nova Scotia">Nova Scotia</button>
+                    <button class="filter-btn" data-province="New Brunswick">New Brunswick</button>
+                    <button class="filter-btn" data-province="Prince Edward Island">PEI</button>
+                    <button class="filter-btn" data-province="Newfoundland and Labrador">Newfoundland</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="chartsArea"></div>
+    </div>
+
+    <!-- Member Profile Modal (reused from index.html) -->
+    <div id="profileModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <h2 id="profileName">-</h2>
+                    <div class="subtitle" id="profileSubtitle">-</div>
+                </div>
+                <button class="close">&times;</button>
+            </div>
+            <div class="modal-body" id="profileBody"></div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <script>
+        let allMembers = [];
+        const chartInstances = {};
+        let selectedParties = [];
+        let selectedProvinces = [];
+        const modal = document.getElementById("profileModal");
+        const closeBtn = document.querySelector(".close");
+
+        const partyColors = {
+            'Liberal': '#D71920',
+            'Conservative': '#1A4782',
+            'Bloc Québécois': '#33B2CC',
+            'NDP': '#F37021',
+            'Green Party': '#3D9B35',
+            'Independent': '#6b7280'
+        };
+
+        const chartConfigs = [
+            {
+                id: 'chart-activity',
+                title: 'Tenure vs Activity Index',
+                subtitle: 'Activity Index = Interventions 33% + Committee Work 27% + Bills 20% + Committees 13% + Associations 7%. Click a dot for profile.',
+                yField: 'activity_index_score',
+                yLabel: 'Activity Index (0-10)',
+                suggestedMax: 10,
+                valueFormatter: (v) => v?.toFixed?.(2) ?? v
+            },
+            {
+                id: 'chart-presence',
+                title: 'Tenure vs House Presence Rate',
+                subtitle: 'House presence rate across recorded votes.',
+                yField: 'presence_rate',
+                yLabel: 'Presence Rate (%)',
+                suggestedMax: 100,
+                valueFormatter: (v) => v?.toFixed?.(1) ?? v
+            },
+            {
+                id: 'chart-interventions',
+                title: 'Tenure vs House Intervention Counts (Total)',
+                subtitle: 'Floor intervention counts (total).',
+                yField: 'interventions_count',
+                yLabel: 'Interventions (total)',
+                valueFormatter: (v) => v?.toFixed?.(0) ?? v
+            },
+            {
+                id: 'chart-committee-interventions',
+                title: 'Tenure vs Committee Intervention Counts (Total)',
+                subtitle: 'Committee intervention counts (total).',
+                yField: 'committee_interventions_count',
+                yLabel: 'Committee Interventions (total)',
+                valueFormatter: (v) => v?.toFixed?.(0) ?? v
+            },
+            {
+                id: 'chart-bills',
+                title: 'Tenure vs Bills Sponsored',
+                subtitle: 'Current-session bills sponsored.',
+                yField: 'bills_sponsored_current',
+                yLabel: 'Bills Sponsored (current session)'
+            },
+            {
+                id: 'chart-committees',
+                title: 'Tenure vs Committees',
+                subtitle: 'Number of committees currently serving.',
+                yField: 'committees_count',
+                yLabel: 'Committees'
+            },
+            {
+                id: 'chart-associations',
+                title: 'Tenure vs Associations',
+                subtitle: 'Unique parliamentary associations.',
+                yField: 'associations_count',
+                yLabel: 'Associations'
+            }
+        ];
+
+        closeBtn.addEventListener("click", () => {
+            modal.style.display = "none";
+        });
+
+        window.addEventListener("click", (event) => {
+            if (event.target === modal) {
+                modal.style.display = "none";
+            }
+        });
+
+        function getPartyRaw(m) {
+            return m.caucus_short || m.caucus_short_name || m.party || m.caucus || "";
+        }
+
+        function getPartyDisplay(m) {
+            const raw = getPartyRaw(m);
+            const normalize = (s) => (s || "").toString().trim().toLowerCase();
+            if (normalize(raw) === "ndp") return "NDP";
+            return raw || "";
+        }
+
+        function getProvince(m) {
+            return m.province || m.constituency_province_territory || m.constituency_province || "";
+        }
+        
+        function initializeFilters() {
+            // Party filter buttons
+            document.querySelectorAll('#partyButtons .filter-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const party = this.getAttribute('data-party');
+                    if (this.classList.contains('active')) {
+                        this.classList.remove('active');
+                        selectedParties = selectedParties.filter(p => p !== party);
+                    } else {
+                        this.classList.add('active');
+                        selectedParties.push(party);
+                    }
+                    renderCharts();
+                });
+            });
+            
+            // Province filter buttons
+            document.querySelectorAll('#provinceButtons .filter-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const province = this.getAttribute('data-province');
+                    if (this.classList.contains('active')) {
+                        this.classList.remove('active');
+                        selectedProvinces = selectedProvinces.filter(p => p !== province);
+                    } else {
+                        this.classList.add('active');
+                        selectedProvinces.push(province);
+                    }
+                    renderCharts();
+                });
+            });
+        }
+        
+        function resetPartyFilters() {
+            selectedParties = [];
+            document.querySelectorAll('#partyButtons .filter-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            renderCharts();
+        }
+        
+        function resetProvinceFilters() {
+            selectedProvinces = [];
+            document.querySelectorAll('#provinceButtons .filter-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            renderCharts();
+        }
+
+        async function loadMembers() {
+            try {
+                // Check if ChartDataLabels is available
+                if (typeof ChartDataLabels === 'undefined') {
+                    console.error('ChartDataLabels plugin not loaded!');
+                    document.getElementById("chartContainer").innerHTML = '<div class="error">ChartDataLabels plugin failed to load. Check internet connection.</div>';
+                    return;
+                }
+                
+                const chartsArea = document.getElementById("chartsArea");
+                chartsArea.innerHTML = '<div class="loading">Loading members...</div>';
+                const response = await fetch("/api/metrics/members?parliament=45&session=1&limit=500");
+                const data = await response.json();
+                allMembers = data.members || [];
+                renderCharts();
+            } catch (error) {
+                console.error("Error loading members:", error);
+                const chartsArea = document.getElementById("chartsArea");
+                chartsArea.innerHTML = '<div class="error">Error loading members. Check console.</div>';
+            }
+        }
+
+        function ensureChartShell(config) {
+            const area = document.getElementById('chartsArea');
+            let wrapper = document.getElementById(`${config.id}-wrapper`);
+            if (!wrapper) {
+                wrapper = document.createElement('div');
+                wrapper.className = 'chart-wrapper';
+                wrapper.id = `${config.id}-wrapper`;
+                wrapper.innerHTML = `
+                    <div class="chart-header">
+                        <div>
+                            <h2>${config.title}</h2>
+                            <p>${config.subtitle}</p>
+                        </div>
+                        <div class="chart-actions">
+                            <button class="zoom-btn" onclick="resetZoom('${config.id}')">Reset Zoom</button>
+                        </div>
+                    </div>
+                    <div id="${config.id}-container" class="chart-container">
+                        <canvas id="${config.id}-canvas"></canvas>
+                    </div>
+                `;
+                area.appendChild(wrapper);
+            }
+        }
+
+        function createDatasets(filtered, yField) {
+            const byParty = {};
+            filtered.forEach(m => {
+                const party = getPartyDisplay(m);
+                if (!byParty[party]) {
+                    byParty[party] = [];
+                }
+                byParty[party].push(m);
+            });
+
+            const datasets = [];
+            Object.keys(byParty).forEach(party => {
+                const points = byParty[party].map(m => ({
+                    x: m.tenure_months || 0,
+                    y: parseFloat(m[yField]) || 0,
+                    r: 4,
+                    personId: m.person_id,
+                    name: m.name || '',
+                    party: party
+                }));
+
+                if (points.length > 0) {
+                    const partyColor = partyColors[party] || '#6b7280';
+                    datasets.push({
+                        label: party,
+                        data: points,
+                        backgroundColor: partyColor,
+                        borderColor: partyColor,
+                        borderWidth: 1,
+                        tension: 0
+                    });
+                }
+            });
+            return datasets;
+        }
+
+        function renderCharts() {
+            const normalize = (s) => (s || "").toString().trim().toLowerCase();
+
+            const filtered = allMembers.filter(m => {
+                if (selectedParties.length > 0 && !selectedParties.includes(getPartyRaw(m))) {
+                    return false;
+                }
+                if (selectedProvinces.length > 0) {
+                    const memberProvince = getProvince(m);
+                    const matches = selectedProvinces.some(sp => normalize(memberProvince) === normalize(sp));
+                    if (!matches) return false;
+                }
+                return true;
+            });
+
+            const maxTenure = Math.max(...filtered.map(m => m.tenure_months || 0), 0);
+
+            // Clear any loading/error placeholders
+            const chartsArea = document.getElementById('chartsArea');
+            chartsArea.innerHTML = '';
+
+            // Register plugins once
+            Chart.register(ChartDataLabels, ChartZoom);
+
+            chartConfigs.forEach(config => {
+                ensureChartShell(config);
+
+                const datasets = createDatasets(filtered, config.yField);
+                const yMax = Math.max(...datasets.flatMap(ds => ds.data.map(p => p.y)), 0);
+                const computedMax = config.suggestedMax ? config.suggestedMax : (yMax ? yMax * 1.1 : 1);
+
+                // Destroy previous chart instance for this config
+                if (chartInstances[config.id]) {
+                    chartInstances[config.id].destroy();
+                }
+
+                const ctx = document.getElementById(`${config.id}-canvas`).getContext("2d");
+
+                chartInstances[config.id] = new Chart(ctx, {
+                    type: 'bubble',
+                    data: { datasets },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: {
+                            intersect: false,
+                            mode: 'nearest'
+                        },
+                        plugins: {
+                            datalabels: {
+                                display: true,
+                                clamp: true,
+                                align: 'right',
+                                anchor: 'end',
+                                offset: 8,
+                                font: { size: 9, weight: '600' },
+                                color: '#444',
+                                backgroundColor: null,
+                                textStrokeColor: 'rgba(255, 255, 255, 0.9)',
+                                textStrokeWidth: 3,
+                                padding: 2,
+                                formatter: function(value) {
+                                    return value.name;
+                                }
+                            },
+                            legend: {
+                                position: 'top',
+                                labels: {
+                                    usePointStyle: true,
+                                    padding: 15,
+                                    font: { size: 12, weight: '600' }
+                                },
+                                onClick: null
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    title: function(context) {
+                                        if (context.length === 1) {
+                                            const point = context[0].raw;
+                                            return point.name || 'Unknown';
+                                        } else {
+                                            return `${context.length} Members at this Point`;
+                                        }
+                                    },
+                                    label: function(context) {
+                                        const point = context.raw;
+                                        const formatter = config.valueFormatter || ((v) => v);
+                                        return [
+                                            `${point.name || 'Unknown'}`,
+                                            `Party: ${point.party || 'Unknown'}`,
+                                            `Tenure: ${point.x} months`,
+                                            `${config.yLabel}: ${formatter(point.y)}`
+                                        ];
+                                    },
+                                    footer: function(context) {
+                                        if (context.length > 1) {
+                                            return 'Click to see profile. Multiple members at this location.';
+                                        }
+                                        return '';
+                                    }
+                                }
+                            },
+                            zoom: {
+                                pan: { enabled: true, mode: 'xy', modifierKey: 'ctrl' },
+                                zoom: { wheel: { enabled: true }, pinch: { enabled: true }, drag: { enabled: true, modifierKey: 'shift' }, mode: 'xy' }
+                            },
+                            filler: false,
+                            annotation: { drawTime: 'beforeDatasetsDraw' }
+                        },
+                        scales: {
+                            x: {
+                                type: 'linear',
+                                min: 0,
+                                max: maxTenure + 10,
+                                title: { display: true, text: 'Tenure (Months)', font: { size: 13, weight: '600' } },
+                                grid: { color: 'rgba(0, 0, 0, 0.05)' }
+                            },
+                            y: {
+                                min: 0,
+                                max: computedMax,
+                                title: { display: true, text: config.yLabel, font: { size: 13, weight: '600' } },
+                                grid: { color: 'rgba(0, 0, 0, 0.05)' }
+                            }
+                        }
+                    }
+                });
+
+                // Click handler for each chart
+                const canvas = document.getElementById(`${config.id}-canvas`);
+                canvas.onclick = (event) => {
+                    const points = chartInstances[config.id].getElementsAtEventForMode(event, 'nearest', { intersect: true }, true);
+                    if (points.length > 0) {
+                        // Collect all personIds at this click location
+                        const personIds = points.map(point => {
+                            const datasetIndex = point.datasetIndex;
+                            const dataIndex = point.index;
+                            return chartInstances[config.id].data.datasets[datasetIndex].data[dataIndex].personId;
+                        });
+                        
+                        if (personIds.length === 1) {
+                            showProfile(personIds[0]);
+                        } else {
+                            showMultipleProfiles(personIds);
+                        }
+                    }
+                };
+            });
+        }
+
+        function resetZoom(chartId) {
+            const chart = chartInstances[chartId];
+            if (chart && chart.resetZoom) {
+                chart.resetZoom();
+            }
+        }
+
+        async function showMultipleProfiles(personIds) {
+            try {
+                // Fetch all member profiles
+                const members = [];
+                for (const personId of personIds) {
+                    const response = await fetch(`/api/metrics/member/${personId}?parliament=45&session=1`);
+                    const data = await response.json();
+                    members.push(data.member);
+                }
+
+                // Build comparison grid with all members
+                let comparisonHTML = '';
+                members.forEach(m => {
+                    const presenceRate = m.presence_rate ?? 'N/A';
+                    const activityScore = m.activity_index_score ?? 'N/A';
+                    const activityRank = m.activity_index_rank ?? 'N/A';
+                    const interventions = m.interventions_count ?? 'N/A';
+                    const committeInt = m.committee_interventions_count ?? 'N/A';
+                    const bills = m.bills_sponsored_current ?? 'N/A';
+                    const committees = m.committees_current ?? 'N/A';
+                    const associations = m.associations_count ?? 'N/A';
+                    
+                    comparisonHTML += `
+                        <div class="metric" style="border-left-color: ${partyColors[m.party] || '#6b7280'}; cursor: pointer;" onclick="showProfile('${m.person_id}')">
+                            <div class="metric-label">${m.name}</div>
+                            <div style="font-size: 13px; margin-bottom: 8px;">
+                                <strong>${m.party}</strong> • ${m.province}
+                            </div>
+                            <div style="font-size: 12px; line-height: 1.6; color: #666;">
+                                <div>Activity: <strong>${activityScore}/10</strong></div>
+                                <div>Presence: <strong>${presenceRate}%</strong></div>
+                                <div>House Intrvn: <strong>${interventions}</strong></div>
+                                <div>Committee Intrvn: <strong>${committeInt}</strong></div>
+                                <div>Bills: <strong>${bills}</strong> | Committees: <strong>${committees}</strong></div>
+                                <div>Associations: <strong>${associations}</strong></div>
+                            </div>
+                            <div style="font-size: 11px; color: #999; margin-top: 8px;">Click for full profile</div>
+                        </div>
+                    `;
+                });
+
+                document.getElementById("profileName").textContent = `${personIds.length} Members at this Location`;
+                document.getElementById("profileSubtitle").textContent = 'Click any card below for full profile';
+
+                const profileBody = document.getElementById("profileBody");
+                profileBody.innerHTML = `
+                    <div class="profile-section">
+                        <h3>Members Comparison</h3>
+                        <div class="metrics-grid">
+                            ${comparisonHTML}
+                        </div>
+                    </div>
+                `;
+
+                modal.style.display = "block";
+            } catch (error) {
+                console.error("Error loading multiple profiles:", error);
+                alert("Error loading member profiles");
+            }
+        }
+
+        async function showProfile(personId) {
+            try {
+                const response = await fetch(`/api/metrics/member/${personId}?parliament=45&session=1`);
+                const data = await response.json();
+                const m = data.member;
+                const c = data.comparisons;
+
+                const presenceRank = m.presence_rank ?? 'N/A';
+                const presencePercentile = m.presence_percentile ?? 'N/A';
+                const presencePercentileParty = m.presence_percentile_in_party ?? 'N/A';
+                const activityRank = m.activity_index_rank ?? 'N/A';
+                const activityPercentile = m.activity_index_percentile ?? 'N/A';
+                const activityPercentileParty = m.activity_index_percentile_in_party ?? 'N/A';
+                const committeesCount = m.committees_current ?? 'N/A';
+                const electionsWon = m.elections_won ?? 'N/A';
+
+                document.getElementById("profileName").textContent = m.name;
+                document.getElementById("profileSubtitle").textContent = 
+                    `${m.party} • ${m.province} • ${m.constituency}`;
+
+                let voteBreakdownHTML = 'N/A';
+                if (m.total_votes && m.total_votes > 0) {
+                    const presentPct = (m.present / m.total_votes * 100).toFixed(0);
+                    const absentPct = (m.absent / m.total_votes * 100).toFixed(0);
+                    const pairedPct = (m.paired / m.total_votes * 100).toFixed(0);
+                    voteBreakdownHTML = `
+                        <div class="vote-breakdown">
+                            <span class="vote-yes" style="width: ${presentPct}%">${m.present}</span>
+                            <span class="vote-no" style="width: ${absentPct}%">${m.absent}</span>
+                            <span class="vote-paired" style="width: ${pairedPct}%">${m.paired}</span>
+                        </div>
+                        <div class="metric-rank" style="margin-top: 5px;">Present | Absent | Paired</div>
+                    `;
+                }
+
+                const profileBody = document.getElementById("profileBody");
+                profileBody.innerHTML = `
+                    <div class="profile-section">
+                        <h3>Voting Performance</h3>
+                        <div class="metrics-grid">
+                            <div class="metric">
+                                <div class="metric-label">Presence Rate</div>
+                                <div class="metric-value">${m.presence_rate ?? 'N/A'}%</div>
+                                <div class="metric-rank">Rank: #${presenceRank}/343 (${presencePercentile}th percentile)</div>
+                                <div class="metric-rank">In party: ${presencePercentileParty}th percentile</div>
+                            </div>
+                            <div class="metric">
+                                <div class="metric-label">Vote Breakdown</div>
+                                <div style="margin-top: 10px;">
+                                    ${voteBreakdownHTML}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="profile-section">
+                        <h3>Activity & Engagement</h3>
+                        <div class="metrics-grid">
+                            <div class="metric">
+                                <div class="metric-label">Activity Index</div>
+                                <div class="metric-value">${m.activity_index_score ?? 'N/A'}/10</div>
+                                <div class="metric-rank">Rank: #${activityRank}/343 (${activityPercentile}th percentile)</div>
+                                <div class="metric-rank">In party: ${activityPercentileParty}th percentile</div>
+                            </div>
+                            <div class="metric">
+                                <div class="metric-label">House Intrvn</div>
+                                <div class="metric-value">${m.interventions_count ?? 'N/A'}</div>
+                                <div class="metric-rank">Per month: ${m.interventions_per_month ?? 'N/A'}</div>
+                            </div>
+                            <div class="metric">
+                                <div class="metric-label">Committee Intrvn</div>
+                                <div class="metric-value">${m.committee_interventions_count ?? 'N/A'}</div>
+                                <div class="metric-rank">Per month: ${m.committee_per_month ?? 'N/A'}</div>
+                            </div>
+                            <div class="metric">
+                                <div class="metric-label">Bills Sponsored</div>
+                                <div class="metric-value">${m.bills_sponsored_current ?? 'N/A'}</div>
+                                <div class="metric-rank">Current session</div>
+                            </div>
+                            <div class="metric">
+                                <div class="metric-label">Committees</div>
+                                <div class="metric-value">${committeesCount}</div>
+                                <div class="metric-rank">Currently serving</div>
+                            </div>
+                            <div class="metric">
+                                <div class="metric-label">Associations</div>
+                                <div class="metric-value">${m.associations_count ?? 'N/A'}</div>
+                                <div class="metric-rank">Parliamentary groups</div>
+                            </div>
+                            <div class="metric">
+                                <div class="metric-label">Tenure</div>
+                                <div class="metric-value">${m.years_in_house ?? 'N/A'}</div>
+                                <div class="metric-rank">${m.tenure_months ?? 'N/A'} months • ${electionsWon} elections</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="profile-section">
+                        <h3>Comparison to Peers</h3>
+                        <div class="metrics-grid">
+                            <div class="metric comparison">
+                                <div class="metric-label">${c.party.name ?? 'Party'} Party Average</div>
+                                <div style="margin-top: 10px;">
+                                    <div class="metric-rank">Presence: ${c.party.avg_presence_rate ?? 'N/A'}%</div>
+                                    <div class="metric-rank">Activity: ${c.party.avg_activity_index_score ?? 'N/A'}/10</div>
+                                    <div class="metric-rank">Size: ${c.party.size ?? 'N/A'} members</div>
+                                </div>
+                                <div style="margin-top: 10px; font-size: 12px; font-weight: 500;">
+                                    <div style="color: ${c.party.member_above_party_presence ? '#10b981' : '#ef4444'}">
+                                        ${c.party.member_above_party_presence ? '✓' : '✗'} Above party presence average
+                                    </div>
+                                    <div style="color: ${c.party.member_above_party_activity ? '#10b981' : '#ef4444'}">
+                                        ${c.party.member_above_party_activity ? '✓' : '✗'} Above party activity average
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="metric comparison">
+                                <div class="metric-label">${c.province.name ?? 'Province'} Province Average</div>
+                                <div style="margin-top: 10px;">
+                                    <div class="metric-rank">Activity: ${c.province.avg_activity_index_score ?? 'N/A'}/10</div>
+                                    <div class="metric-rank">Size: ${c.province.size ?? 'N/A'} members</div>
+                                </div>
+                                <div style="margin-top: 10px; font-size: 12px; font-weight: 500;">
+                                    <div style="color: ${c.province.member_above_province_activity ? '#10b981' : '#ef4444'}">
+                                        ${c.province.member_above_province_activity ? '✓' : '✗'} Above province activity average
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                modal.style.display = "block";
+            } catch (error) {
+                console.error("Error loading profile:", error);
+                alert("Error loading member profile");
+            }
+        }
+
+        // Load members on page load
+        loadMembers();
+        initializeFilters();
+    </script>
+</body>
+</html>

@@ -1,0 +1,28 @@
+{
+  "name": "parliament-dashboard",
+  "version": "1.0.0",
+  "description": "Parliament dashboard with MongoDB, Express, and Chart.js",
+  "main": "server.js",
+  "scripts": {
+    "etl": "node etl-server.js",
+    "compute": "node compute-stats.js",
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "keywords": [
+    "dashboard",
+    "parliament",
+    "mongodb",
+    "express"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.18.2",
+    "node-fetch": "^2.6.7",
+    "mongodb": "^5.0.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  }
+}

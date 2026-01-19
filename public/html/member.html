@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MP Profile - Parliament Analytics</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: #f5f5f5;
+            color: #333;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
+            color: white;
+            padding: 30px 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+        
+        .header a {
+            color: rgba(255, 255, 255, 0.8);
+            text-decoration: none;
+            font-size: 14px;
+            display: inline-block;
+            margin-top: 10px;
+            padding: 8px 15px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+        
+        .header a:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .mp-selector {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+        
+        .mp-selector label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            color: #666;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .mp-selector select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            background: white;
+            cursor: pointer;
+        }
+        
+        .profile-wrapper {
+            display: none;
+        }
+        
+        .profile-header {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+        
+        .profile-info h2 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+        
+        .profile-subtitle {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 10px;
+        }
+        
+        .profile-badges {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            background: #f3f4f6;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            color: #666;
+            border: 1px solid #e5e7eb;
+        }
+        
+        .activity-score {
+            text-align: right;
+        }
+        
+        .score-number {
+            font-size: 48px;
+            font-weight: 700;
+            color: #1e40af;
+            line-height: 1;
+        }
+        
+        .score-label {
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-top: 5px;
+        }
+        
+        .profile-section {
+            background: white;
+            padding: 25px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+        
+        .profile-section h3 {
+            font-size: 14px;
+            font-weight: 600;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 20px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #e5e7eb;
+        }
+        
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 20px;
+        }
+        
+        .metric {
+            padding: 15px;
+            background: #f9fafb;
+            border-radius: 6px;
+            border-left: 3px solid #3b82f6;
+        }
+        
+        .metric-label {
+            font-size: 11px;
+            font-weight: 600;
+            color: #999;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 5px;
+        }
+        
+        .metric-value {
+            font-size: 20px;
+            font-weight: 700;
+            color: #1e40af;
+            line-height: 1.2;
+            margin-bottom: 5px;
+        }
+        
+        .metric-detail {
+            font-size: 12px;
+            color: #666;
+            line-height: 1.5;
+        }
+        
+        .metric.comparison {
+            background: #f0f9ff;
+            border-left-color: #0284c7;
+        }
+        
+        .metric.above {
+            background: #f0fdf4;
+            border-left-color: #10b981;
+        }
+        
+        .metric.below {
+            background: #fef2f2;
+            border-left-color: #ef4444;
+        }
+        
+        .chart-container {
+            position: relative;
+            height: 300px;
+            margin-top: 20px;
+        }
+        
+        .loading, .error {
+            text-align: center;
+            padding: 40px;
+            font-size: 14px;
+        }
+        
+        .error {
+            background: #fee2e2;
+            color: #991b1b;
+            border-radius: 8px;
+            border-left: 4px solid #dc2626;
+        }
+        
+        .vote-breakdown {
+            display: flex;
+            height: 40px;
+            border-radius: 4px;
+            overflow: hidden;
+            background: #e5e7eb;
+            margin-top: 10px;
+        }
+        
+        .vote-breakdown span {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 12px;
+            font-weight: 700;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        }
+        
+        .vote-yes { background: #10b981; }
+        .vote-no { background: #ef4444; }
+        .vote-paired { background: #f59e0b; }
+        
+        @media (max-width: 768px) {
+            .profile-header {
+                flex-direction: column;
+            }
+            
+            .activity-score {
+                text-align: left;
+                margin-top: 20px;
+            }
+            
+            .metrics-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🏛️ Parliament Analytics - Member Profile</h1>
+        <a href="/">← Back to Members List</a>
+    </div>
+
+    <div class="container">
+        <div class="mp-selector">
+            <label for="mpSelect">Select a Member of Parliament</label>
+            <select id="mpSelect">
+                <option value="">Loading...</option>
+            </select>
+        </div>
+
+        <div id="profileContent" class="profile-wrapper">
+            <div class="profile-header">
+                <div class="profile-info">
+                    <h2 id="profileName">-</h2>
+                    <div class="profile-subtitle" id="profileParty">-</div>
+                    <div class="profile-subtitle" id="profileConstituency">-</div>
+                    <div class="profile-badges">
+                        <span class="badge" id="partyBadge">-</span>
+                        <span class="badge" id="provinceBadge">-</span>
+                    </div>
+                </div>
+                <div class="activity-score">
+                    <div class="score-number" id="activityScore">-</div>
+                    <div class="score-label">Activity Index</div>
+                </div>
+            </div>
+
+            <div class="profile-section">
+                <h3>Voting Performance</h3>
+                <div class="metrics-grid">
+                    <div class="metric">
+                        <div class="metric-label">Presence Rate</div>
+                        <div class="metric-value" id="presenceRate">-</div>
+                        <div class="metric-detail" id="presenceRank">-</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-label">Total Votes</div>
+                        <div class="metric-value" id="totalVotes">-</div>
+                        <div class="vote-breakdown" id="voteBreakdown"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="profile-section">
+                <h3>Parliamentary Activity</h3>
+                <div class="metrics-grid">
+                    <div class="metric">
+                        <div class="metric-label">Interventions</div>
+                        <div class="metric-value" id="interventions">-</div>
+                        <div class="metric-detail" id="interventionsPerMonth">-</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-label">Committee Work</div>
+                        <div class="metric-value" id="committeeInterventions">-</div>
+                        <div class="metric-detail" id="committeePerMonth">-</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-label">Bills Sponsored</div>
+                        <div class="metric-value" id="billsSponsored">-</div>
+                        <div class="metric-detail">In current session</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-label">Tenure</div>
+                        <div class="metric-value" id="tenure">-</div>
+                        <div class="metric-detail" id="tenureDetail">-</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-label">Committees</div>
+                        <div class="metric-value" id="committees">-</div>
+                        <div class="metric-detail">Currently serving</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="profile-section">
+                <h3>Ranking & Percentiles</h3>
+                <div class="metrics-grid">
+                    <div class="metric">
+                        <div class="metric-label">Activity Index Rank</div>
+                        <div class="metric-value" id="activityRank">-</div>
+                        <div class="metric-detail" id="activityPercentile">-</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-label">Presence Rank</div>
+                        <div class="metric-value" id="presenceRankValue">-</div>
+                        <div class="metric-detail" id="presencePercentile">-</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-label">Activity in Party</div>
+                        <div class="metric-value" id="activityPartyPercentile">-</div>
+                        <div class="metric-detail">Percentile within caucus</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="profile-section">
+                <h3>Comparison to Peers</h3>
+                <div class="metrics-grid">
+                    <div class="metric comparison" id="partyComparison"></div>
+                    <div class="metric comparison" id="provinceComparison"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let allMembers = [];
+
+        async function loadMembers() {
+            try {
+                const response = await fetch("/api/metrics/members?parliament=45&session=1&limit=500");
+                const data = await response.json();
+                allMembers = data.members || [];
+                
+                const select = document.getElementById("mpSelect");
+                select.innerHTML = '<option value="">Select a member...</option>' +
+                    allMembers.map(m => `<option value="${m.person_id}">${m.name} (${m.party})</option>`).join("");
+                
+                select.addEventListener("change", (e) => {
+                    if (e.target.value) {
+                        loadProfile(e.target.value);
+                    }
+                });
+            } catch (error) {
+                console.error("Error loading members:", error);
+                document.getElementById("mpSelect").innerHTML = '<option>Error loading members</option>';
+            }
+        }
+
+        async function loadProfile(personId) {
+            try {
+                const response = await fetch(`/api/metrics/member/${personId}?parliament=45&session=1`);
+                const data = await response.json();
+                const m = data.member;
+                const c = data.comparisons;
+
+                // Profile header
+                document.getElementById("profileName").textContent = m.name;
+                document.getElementById("profileParty").textContent = `${m.party} • ${m.caucus_short_name}`;
+                document.getElementById("profileConstituency").textContent = m.constituency;
+                document.getElementById("partyBadge").textContent = m.party;
+                document.getElementById("provinceBadge").textContent = m.province;
+                document.getElementById("activityScore").textContent = m.activity_index_score;
+
+                // Voting performance
+                document.getElementById("presenceRate").textContent = `${m.presence_rate}%`;
+                document.getElementById("presenceRank").textContent = 
+                    `Rank: #${m.presence_rank}/343 (${m.presence_percentile}th percentile) | In party: ${m.presence_percentile_in_party}th`;
+                
+                document.getElementById("totalVotes").textContent = m.total_votes;
+                const presentPct = (m.present / m.total_votes * 100).toFixed(0);
+                const absentPct = (m.absent / m.total_votes * 100).toFixed(0);
+                const pairedPct = (m.paired / m.total_votes * 100).toFixed(0);
+                document.getElementById("voteBreakdown").innerHTML = `
+                    <span class="vote-yes" style="width: ${presentPct}%">${m.present}</span>
+                    <span class="vote-no" style="width: ${absentPct}%">${m.absent}</span>
+                    <span class="vote-paired" style="width: ${pairedPct}%">${m.paired}</span>
+                `;
+
+                // Activity
+                document.getElementById("interventions").textContent = m.interventions_count;
+                document.getElementById("interventionsPerMonth").textContent = `${m.interventions_per_month} per month`;
+                document.getElementById("committeeInterventions").textContent = m.committee_interventions_count;
+                document.getElementById("committeePerMonth").textContent = `${m.committee_per_month} per month`;
+                document.getElementById("billsSponsored").textContent = m.bills_sponsored_current;
+                document.getElementById("tenure").textContent = `${m.years_in_house}y`;
+                document.getElementById("tenureDetail").textContent = `${m.tenure_months} months • ${m.elections_won} elections`;
+                document.getElementById("committees").textContent = m.committees_current;
+
+                // Rankings
+                document.getElementById("activityRank").textContent = `#${m.activity_index_rank}`;
+                document.getElementById("activityPercentile").textContent = `${m.activity_index_percentile}th percentile overall`;
+                document.getElementById("presenceRankValue").textContent = `#${m.presence_rank}`;
+                document.getElementById("presencePercentile").textContent = `${m.presence_percentile}th percentile overall`;
+                document.getElementById("activityPartyPercentile").textContent = `${m.activity_index_percentile_in_party}th`;
+
+                // Comparisons
+                const partyClass = c.party.member_above_party_activity ? "above" : "below";
+                document.getElementById("partyComparison").innerHTML = `
+                    <div class="metric-label">${c.party.name} Party Average</div>
+                    <div style="margin-top: 10px;">
+                        <div class="metric-detail">Presence: ${c.party.avg_presence_rate}%</div>
+                        <div class="metric-detail">Activity: ${c.party.avg_activity_index_score}/10</div>
+                        <div class="metric-detail">Members: ${c.party.size}</div>
+                    </div>
+                    <div style="margin-top: 10px; font-size: 12px; font-weight: 500;">
+                        <div style="color: ${c.party.member_above_party_presence ? '#10b981' : '#ef4444'};">
+                            ${c.party.member_above_party_presence ? '✓' : '✗'} Above presence avg
+                        </div>
+                        <div style="color: ${c.party.member_above_party_activity ? '#10b981' : '#ef4444'};">
+                            ${c.party.member_above_party_activity ? '✓' : '✗'} Above activity avg
+                        </div>
+                    </div>
+                `;
+                document.getElementById("partyComparison").className = `metric comparison ${partyClass}`;
+
+                const provinceClass = c.province.member_above_province_activity ? "above" : "below";
+                document.getElementById("provinceComparison").innerHTML = `
+                    <div class="metric-label">${c.province.name} Province Average</div>
+                    <div style="margin-top: 10px;">
+                        <div class="metric-detail">Activity: ${c.province.avg_activity_index_score}/10</div>
+                        <div class="metric-detail">Members: ${c.province.size}</div>
+                    </div>
+                    <div style="margin-top: 10px; font-size: 12px; font-weight: 500;">
+                        <div style="color: ${c.province.member_above_province_activity ? '#10b981' : '#ef4444'};">
+                            ${c.province.member_above_province_activity ? '✓' : '✗'} Above province avg
+                        </div>
+                    </div>
+                `;
+                document.getElementById("provinceComparison").className = `metric comparison ${provinceClass}`;
+
+                document.getElementById("profileContent").style.display = "block";
+            } catch (error) {
+                console.error("Error loading profile:", error);
+                alert("Error loading member profile");
+            }
+        }
+
+        loadMembers();
+    </script>
+</body>
+</html>
