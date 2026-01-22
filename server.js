@@ -3,7 +3,7 @@ const path = require("path");
 const fetch = require("node-fetch");
 const { MongoClient } = require("mongodb");
 const app = express();
-const port = 3001;
+const port = 3002;
 
 const XBILL_API = "https://xbill.ca/api";
 const MONGO_URL = "mongodb://localhost:27017";
@@ -154,12 +154,97 @@ async function main() {
             return { name, party, province, riding };
         };
 
+        // Helper: Verify title_role_ranking collection has data
+        async function ensureTitleRoleRankings() {
+            const collection = db.collection('title_role_ranking');
+            const count = await collection.countDocuments();
+            
+            if (count === 0) {
+                console.log('[COMPUTE] WARNING: title_role_ranking collection is empty! Run seed script first.');
+                throw new Error('title_role_ranking collection is empty - rankings data required');
+            }
+            
+            console.log(`[COMPUTE] title_role_ranking has ${count} documents, using existing data`);
+        }
+
+        // Helper: Calculate position leadership score for a member
+        function calculatePositionLeadershipScore(member, rankingsMap, tenureMonths) {
+            if (tenureMonths === 0) return 0;
+
+            const positions = member.positions || [];
+            const committees = member.committees || [];
+            
+            let totalWeightedRank = 0;
+            let totalMonths = 0;
+            let maxRank = 0;
+            const now = new Date();
+
+            // Process positions
+            for (const pos of positions) {
+                if (!pos.title) continue;
+                const normalized = pos.title.toLowerCase().trim();
+                const ranking = rankingsMap.get(normalized);
+                if (!ranking) continue;
+
+                const rankValue = ranking.rank_value;
+                const fromDate = pos.from_datetime ? new Date(pos.from_datetime) : null;
+                const toDate = pos.to_datetime ? new Date(pos.to_datetime) : now;
+                
+                if (!fromDate) continue;
+                
+                const monthsHeld = Math.max(1, Math.floor((toDate - fromDate) / (30.44 * 24 * 60 * 60 * 1000)));
+                totalWeightedRank += rankValue * monthsHeld;
+                totalMonths += monthsHeld;
+                maxRank = Math.max(maxRank, rankValue);
+            }
+
+            // Process committee roles
+            for (const comm of committees) {
+                if (!comm.role_name) continue;
+                const normalized = comm.role_name.toLowerCase().trim();
+                const ranking = rankingsMap.get(normalized);
+                if (!ranking) continue;
+
+                const rankValue = ranking.rank_value;
+                const fromDate = comm.from_datetime ? new Date(comm.from_datetime) : null;
+                const toDate = comm.to_datetime ? new Date(comm.to_datetime) : now;
+                
+                if (!fromDate) continue;
+                
+                const monthsHeld = Math.max(1, Math.floor((toDate - fromDate) / (30.44 * 24 * 60 * 60 * 1000)));
+                totalWeightedRank += rankValue * monthsHeld;
+                totalMonths += monthsHeld;
+                maxRank = Math.max(maxRank, rankValue);
+            }
+
+            if (totalMonths === 0) return 0;
+
+            // Formula: 70% weighted average + 30% peak rank
+            const avgWeightedRank = totalWeightedRank / totalMonths;
+            const score = (avgWeightedRank * 0.70) + (maxRank * 0.30);
+            
+            return Number(score.toFixed(2));
+        }
+
         // COMPUTE: Pre-aggregate analytics for a session
         app.post("/api/compute/session/:parliament/:session", async (req, res) => {
             try {
                 const { parliament, session } = req.params;
                 const pStr = String(parliament), sStr = String(session);
                 console.log(`[COMPUTE] Starting analytics for Parliament ${pStr} Session ${sStr}`);
+
+                // Ensure title_role_ranking collection is populated
+                try {
+                    await ensureTitleRoleRankings();
+                } catch (seedError) {
+                    console.error('[COMPUTE] Error seeding rankings:', seedError);
+                    throw seedError;
+                }
+
+                // Load rankings into memory for fast lookup
+                const rankingsArr = await db.collection("title_role_ranking").find({}).toArray();
+                const rankingsMap = new Map(rankingsArr.map(r => [r.normalized_title, r]));
+                console.log(`[COMPUTE] Loaded ${rankingsMap.size} title/role rankings`);
 
                 // Load members and map metadata + compute tenure
                 const membersArr = await db.collection("members").find({}).toArray();
@@ -246,10 +331,16 @@ async function main() {
                         ? new Set(m.committees.map(c => c.committee_name).filter(Boolean)).size
                         : 0;
                     
-                    // Count unique associations (from associations array by organization)
-                    const uniqueAssociations = (m.associations && Array.isArray(m.associations))
-                        ? new Set(m.associations.map(a => a.organization).filter(Boolean)).size
+                    // Count unique associations (from associations or parliamentary_associations by organization)
+                    const assocList = Array.isArray(m.associations)
+                        ? m.associations
+                        : (Array.isArray(m.parliamentary_associations) ? m.parliamentary_associations : []);
+                    const uniqueAssociations = assocList.length > 0
+                        ? new Set(assocList.map(a => a.organization || a.organization_name || a.association || a.name).filter(Boolean)).size
                         : 0;
+                    
+                    // Calculate position leadership score
+                    const positionLeadershipScore = calculatePositionLeadershipScore(m, rankingsMap, tenureMonths);
                     
                     return [String(m.person_id), {
                         ...getMemberMeta(m),
@@ -266,6 +357,7 @@ async function main() {
                         elections_won: electionsWon,  // Actual count from election_history array
                         committees_current: uniqueCommittees,  // Count unique committee names
                         associations_count: uniqueAssociations,  // Count unique associations
+                        position_leadership_score: positionLeadershipScore,  // NEW: Leadership role score
                         api_debate_count: debateCount,  // From xBill aggregates
                         api_committee_count: committeeCount,  // From xBill aggregates
                         api_bills_sponsored: billsSponsored,  // From xBill
@@ -484,6 +576,7 @@ async function main() {
                         // Roles & Engagement
                         committees_count: memberMeta.committees_current,
                         associations_count: memberMeta.associations_count,
+                        position_leadership_score: memberMeta.position_leadership_score,  // NEW: Leadership role metric
                         
                         // Activity
                         interventions_count,
@@ -502,31 +595,35 @@ async function main() {
                 const avgBills = baseMetrics.reduce((sum, m) => sum + m.bills_sponsored_current, 0) / baseMetrics.length || 1;
                 const avgCommittees = baseMetrics.reduce((sum, m) => sum + m.committees_count, 0) / baseMetrics.length || 1;
                 const avgAssociations = baseMetrics.reduce((sum, m) => sum + m.associations_count, 0) / baseMetrics.length || 1;
+                const avgPositionScore = baseMetrics.reduce((sum, m) => sum + (m.position_leadership_score || 0), 0) / baseMetrics.length || 1;
 
                 for (const m of baseMetrics) {
                     // Activity index formula (0-10 scale)
-                    // Weights (renormalized to sum 100% after removing presence):
-                    // interventions 33%, committee work 26.7%, bills 20%, committees 13.3%, associations 6.7%
-                    const interventionWeight = 0.3333333333;
-                    const committeeWorkWeight = 0.2666666667;
-                    const billsWeight = 0.20;
-                    const committeesWeight = 0.1333333333;
-                    const associationsWeight = 0.0666666667;
+                    // Weights updated to include position leadership (25%):
+                    // position leadership 25%, interventions 25%, committee work 20%, bills 15%, committees 10%, associations 5%
+                    const positionWeight = 0.25;
+                    const interventionWeight = 0.25;
+                    const committeeWorkWeight = 0.20;
+                    const billsWeight = 0.15;
+                    const committeesWeight = 0.10;
+                    const associationsWeight = 0.05;
 
+                    const positionComponent = Math.min(((m.position_leadership_score || 0) / avgPositionScore) * positionWeight, positionWeight);
                     const interventionComponent = Math.min((m.interventions_count / avgInterventions) * interventionWeight, interventionWeight);
                     const committeeWorkComponent = Math.min((m.committee_interventions_count / avgCommitteeInterventions) * committeeWorkWeight, committeeWorkWeight);
                     const billComponent = avgBills > 0 ? Math.min((m.bills_sponsored_current / avgBills) * billsWeight, billsWeight) : 0;
                     const committeesComponent = avgCommittees > 0 ? Math.min((m.committees_count / avgCommittees) * committeesWeight, committeesWeight) : 0;
                     const associationsComponent = avgAssociations > 0 ? Math.min((m.associations_count / avgAssociations) * associationsWeight, associationsWeight) : 0;
                     
-                    m.activity_index_score = Number(((interventionComponent + committeeWorkComponent + billComponent + committeesComponent + associationsComponent) * 10).toFixed(2));
+                    m.activity_index_score = Number(((positionComponent + interventionComponent + committeeWorkComponent + billComponent + committeesComponent + associationsComponent) * 10).toFixed(2));
                 }
 
                 // Compute ranks and percentiles
                 const metricsToRank = [
                     'presence_rate', 'tenure_months', 'interventions_count', 
                     'committee_interventions_count', 'bills_sponsored_current', 
-                    'activity_index_score', 'committees_count', 'associations_count'
+                    'activity_index_score', 'committees_count', 'associations_count',
+                    'position_leadership_score'  // NEW: Add position leadership to ranked metrics
                 ];
 
                 for (const metricName of metricsToRank) {
@@ -973,6 +1070,10 @@ async function main() {
                         presence_rate: (m.presence_rate || 0).toFixed(1),
                         presence_rank: m.presence_rank,
                         presence_percentile: m.presence_percentile,
+                        // Leadership
+                        position_leadership_score: (m.position_leadership_score || 0).toFixed(2),
+                        position_leadership_rank: m.position_leadership_rank,
+                        position_leadership_percentile: m.position_leadership_percentile,
                         // Tenure
                         tenure_months: m.tenure_months,
                         // Engagement
@@ -1012,6 +1113,13 @@ async function main() {
                     return res.status(404).json({ error: "Member not found" });
                 }
 
+                // Fetch the full member record from members collection for array fields
+                // Handle person_id stored as string or number in MongoDB
+                const personIdNum = Number(personId);
+                const fullMember = await db.collection("members").findOne({
+                    person_id: { $in: [personId, isNaN(personIdNum) ? personId : personIdNum] }
+                });
+
                 // Fetch all members in same party for comparison
                 const partyMembers = await db.collection("member_stats")
                     .find({ parliament, session, caucus_short_name: member.caucus_short_name })
@@ -1047,6 +1155,9 @@ async function main() {
                         constituency: member.constituency,
                         // Voting
                         presence_rate: (member.presence_rate || 0).toFixed(1),
+                        presence_rate_rank: member.presence_rate_rank,
+                        presence_rate_percentile: member.presence_rate_percentile,
+                        presence_rate_percentile_in_party: member.presence_rate_percentile_in_party,
                         present: member.present,
                         paired: member.paired,
                         absent: member.absent,
@@ -1054,24 +1165,64 @@ async function main() {
                         presence_rank: member.presence_rate_rank,
                         presence_percentile: member.presence_rate_percentile,
                         presence_percentile_in_party: member.presence_rate_percentile_in_party,
+                        // Leadership
+                        position_leadership_score: (member.position_leadership_score || 0).toFixed(2),
+                        position_leadership_score_rank: member.position_leadership_score_rank,
+                        position_leadership_score_percentile: member.position_leadership_score_percentile,
+                        position_leadership_score_percentile_in_party: member.position_leadership_score_percentile_in_party,
+                        position_leadership_rank: member.position_leadership_score_rank,
+                        position_leadership_percentile: member.position_leadership_score_percentile,
                         // Tenure & background
                         tenure_months: member.tenure_months,
+                        tenure_months_rank: member.tenure_months_rank,
+                        tenure_months_percentile: member.tenure_months_percentile,
+                        tenure_months_percentile_in_party: member.tenure_months_percentile_in_party,
                         years_in_house: member.years_in_house,
                         elections_won: member.elections_won,
-                        // Engagement
+                        // Engagement - Committees
+                        committees_count: member.committees_count,
+                        committees_count_rank: member.committees_count_rank,
+                        committees_count_percentile: member.committees_count_percentile,
+                        committees_count_percentile_in_party: member.committees_count_percentile_in_party,
                         committees_current: member.committees_count,
+                        // Engagement - Associations
                         associations_count: member.associations_count,
-                        // Activity (from ETL)
+                        associations_count_rank: member.associations_count_rank,
+                        associations_count_percentile: member.associations_count_percentile,
+                        associations_count_percentile_in_party: member.associations_count_percentile_in_party,
+                        // Activity (from ETL) - Interventions
                         interventions_count: member.interventions_count,
+                        interventions_count_rank: member.interventions_count_rank,
+                        interventions_count_percentile: member.interventions_count_percentile,
+                        interventions_count_percentile_in_party: member.interventions_count_percentile_in_party,
                         interventions_per_month: (member.interventions_per_month || 0).toFixed(2),
+                        // Activity - Committee Interventions
                         committee_interventions_count: member.committee_interventions_count,
+                        committee_interventions_count_rank: member.committee_interventions_count_rank,
+                        committee_interventions_count_percentile: member.committee_interventions_count_percentile,
+                        committee_interventions_count_percentile_in_party: member.committee_interventions_count_percentile_in_party,
                         committee_per_month: (member.committee_per_month || 0).toFixed(2),
+                        // Activity - Bills
                         bills_sponsored_current: member.bills_sponsored_current,
+                        bills_sponsored_current_rank: member.bills_sponsored_current_rank,
+                        bills_sponsored_current_percentile: member.bills_sponsored_current_percentile,
+                        bills_sponsored_current_percentile_in_party: member.bills_sponsored_current_percentile_in_party,
                         // Activity index
                         activity_index_score: (member.activity_index_score || 0).toFixed(2),
+                        activity_index_score_rank: member.activity_index_score_rank,
+                        activity_index_score_percentile: member.activity_index_score_percentile,
+                        activity_index_score_percentile_in_party: member.activity_index_score_percentile_in_party,
                         activity_index_rank: member.activity_index_score_rank,
                         activity_index_percentile: member.activity_index_score_percentile,
                         activity_index_percentile_in_party: member.activity_index_score_percentile_in_party
+                    },
+                    details: {
+                        all_positions: fullMember?.all_positions || [],
+                        committees: fullMember?.committees || [],
+                        election_history: fullMember?.election_history || [],
+                        caucus_roles: fullMember?.caucus_roles || [],
+                        // Associations array fallback keys for robustness
+                        associations: fullMember?.associations || fullMember?.parliamentary_associations || []
                     },
                     comparisons: {
                         party: {

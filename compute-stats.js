@@ -3,7 +3,7 @@ const fetch = require('node-fetch');
 
 const PARLIAMENT = process.env.PARLIAMENT || '45';
 const SESSION = process.env.SESSION || '1';
-const SERVER_URL = process.env.SERVER_URL || 'http://localhost:3001';
+const SERVER_URL = process.env.SERVER_URL || 'http://localhost:3002';
 
 async function computeStats() {
     try {

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Parliament Analytics - Scatter Plot Explorer</title>
+    <title>Parliament Tracker Stats - Scatter Plot Explorer</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@1.2.1/dist/chartjs-plugin-zoom.min.js"></script>
@@ -84,7 +84,11 @@
         }
         
         .filter-row {
-            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
         }
         
         .filter-row:last-child {
@@ -95,18 +99,16 @@
             font-size: 12px;
             font-weight: 600;
             color: #666;
-            margin-bottom: 8px;
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
+            white-space: nowrap;
         }
         
         .filter-buttons {
             display: flex;
             flex-wrap: wrap;
             gap: 8px;
+            flex: 1;
         }
         
         .filter-btn {
@@ -197,7 +199,7 @@
             flex-wrap: wrap;
         }
 
-        .zoom-btn {
+        .zoom-btn, .export-btn {
             padding: 8px 12px;
             border: 1px solid #ddd;
             border-radius: 6px;
@@ -209,9 +211,47 @@
             transition: all 0.2s;
         }
 
-        .zoom-btn:hover {
+        .zoom-btn:hover, .export-btn:hover {
             background: #eef2ff;
             border-color: #1e40af;
+        }
+        
+        .export-all-btn {
+            padding: 10px 20px;
+            border: 2px solid #10b981;
+            border-radius: 6px;
+            background: white;
+            color: #10b981;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-top: 12px;
+        }
+        
+        .export-all-btn:hover {
+            background: #d1fae5;
+            border-color: #059669;
+            color: #059669;
+        }
+        
+        .export-all-btn {
+            padding: 10px 20px;
+            border: 2px solid #10b981;
+            border-radius: 6px;
+            background: white;
+            color: #10b981;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-top: 12px;
+        }
+        
+        .export-all-btn:hover {
+            background: #d1fae5;
+            border-color: #059669;
+            color: #059669;
         }
         
         .chart-container {
@@ -469,22 +509,21 @@
 </head>
 <body>
     <div class="header">
-        <h1>🏛️ Parliament Analytics</h1>
+        <h1>🏛️ Parliament Tracker Stats</h1>
         <p>Tenure vs Activity Scatter Charts (Parliament 45, Session 1)</p>
         <div class="breadcrumb">
             <a href="/">Members Table</a>
             <span>→</span>
             <span>Tenure vs Activity Scatter Charts</span>
+            <span>→</span>
+            <a href="/member.html">Member Details</a>
         </div>
     </div>
 
     <div class="container">
         <div class="filters">
             <div class="filter-row">
-                <div class="filter-label">
-                    <span>Parties</span>
-                    <button class="reset-btn" onclick="resetPartyFilters()">Reset</button>
-                </div>
+                <div class="filter-label">Parties</div>
                 <div class="filter-buttons" id="partyButtons">
                     <button class="filter-btn" data-party="Liberal">Liberal</button>
                     <button class="filter-btn" data-party="Conservative">Conservative</button>
@@ -493,13 +532,11 @@
                     <button class="filter-btn" data-party="Green Party">Green Party</button>
                     <button class="filter-btn" data-party="Independent">Independent</button>
                 </div>
+                <button class="reset-btn" onclick="resetPartyFilters()">Reset</button>
             </div>
             
             <div class="filter-row">
-                <div class="filter-label">
-                    <span>Provinces</span>
-                    <button class="reset-btn" onclick="resetProvinceFilters()">Reset</button>
-                </div>
+                <div class="filter-label">Provinces</div>
                 <div class="filter-buttons" id="provinceButtons">
                     <button class="filter-btn" data-province="Ontario">Ontario</button>
                     <button class="filter-btn" data-province="Quebec">Quebec</button>
@@ -512,6 +549,11 @@
                     <button class="filter-btn" data-province="Prince Edward Island">PEI</button>
                     <button class="filter-btn" data-province="Newfoundland and Labrador">Newfoundland</button>
                 </div>
+                <button class="reset-btn" onclick="resetProvinceFilters()">Reset</button>
+            </div>
+            
+            <div style="text-align: center;">
+                <button class="export-all-btn" onclick="exportAllCharts()">📊 Export All Charts as PNG</button>
             </div>
         </div>
 
@@ -554,11 +596,20 @@
             {
                 id: 'chart-activity',
                 title: 'Tenure vs Activity Index',
-                subtitle: 'Activity Index = Interventions 33% + Committee Work 27% + Bills 20% + Committees 13% + Associations 7%. Click a dot for profile.',
+                subtitle: 'Activity Index = Leadership 25% + Interventions 25% + Committee Work 20% + Bills 15% + Committees 10% + Associations 5%. Click a dot for profile.',
                 yField: 'activity_index_score',
                 yLabel: 'Activity Index (0-10)',
                 suggestedMax: 10,
                 valueFormatter: (v) => v?.toFixed?.(2) ?? v
+            },
+            {
+                id: 'chart-leadership',
+                title: 'Tenure vs Leadership Score',
+                subtitle: 'Position Leadership Score based on held titles and committee roles.',
+                yField: 'position_leadership_score',
+                yLabel: 'Leadership Score (0-100)',
+                suggestedMax: 100,
+                valueFormatter: (v) => v?.toFixed?.(1) ?? v
             },
             {
                 id: 'chart-presence',
@@ -718,6 +769,7 @@
                         </div>
                         <div class="chart-actions">
                             <button class="zoom-btn" onclick="resetZoom('${config.id}')">Reset Zoom</button>
+                            <button class="export-btn" onclick="exportChart('${config.id}', '${config.title}')">💾 Export PNG</button>
                         </div>
                     </div>
                     <div id="${config.id}-container" class="chart-container">
@@ -919,6 +971,44 @@
                 chart.resetZoom();
             }
         }
+        
+        function exportChart(chartId, title = '') {
+            const canvas = document.getElementById(`${chartId}-canvas`);
+            if (!canvas) return;
+            
+            // Create a new canvas with white background
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = canvas.width;
+            tempCanvas.height = canvas.height;
+            const ctx = tempCanvas.getContext('2d');
+            
+            // Fill with white background
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+            
+            // Draw the chart canvas on top
+            ctx.drawImage(canvas, 0, 0);
+            
+            // Export the combined canvas
+            const url = tempCanvas.toDataURL('image/png');
+            const link = document.createElement('a');
+            const filename = title
+                ? title.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') + '.png'
+                : `${chartId}-chart.png`;
+            link.download = filename;
+            link.href = url;
+            link.click();
+        }
+        
+        function exportAllCharts() {
+            const wrappers = document.querySelectorAll('[id$="-wrapper"]');
+            wrappers.forEach((wrapper, index) => {
+                const chartId = wrapper.id.replace('-wrapper', '');
+                const titleEl = wrapper.querySelector('h2');
+                const title = titleEl ? titleEl.textContent : '';
+                setTimeout(() => exportChart(chartId, title), index * 200);
+            });
+        }
 
         async function showMultipleProfiles(personIds) {
             try {
@@ -1018,6 +1108,13 @@
 
                 const profileBody = document.getElementById("profileBody");
                 profileBody.innerHTML = `
+                    <div style="padding: 15px 20px; background: #f9fafb; border-bottom: 1px solid #e5e7eb; margin: -30px -30px 20px -30px;">
+                        <a href="/member.html?id=${personId}" style="display: inline-flex; align-items: center; gap: 8px; font-size: 14px; color: #1e40af; text-decoration: none; font-weight: 600;">
+                            <span>📄</span>
+                            <span>View Full Profile Page</span>
+                            <span style="font-size: 12px;">→</span>
+                        </a>
+                    </div>
                     <div class="profile-section">
                         <h3>Voting Performance</h3>
                         <div class="metrics-grid">
@@ -1039,6 +1136,11 @@
                     <div class="profile-section">
                         <h3>Activity & Engagement</h3>
                         <div class="metrics-grid">
+                            <div class="metric">
+                                <div class="metric-label">Leadership Score</div>
+                                <div class="metric-value">${m.position_leadership_score != null ? Number(m.position_leadership_score).toFixed(1) : 'N/A'}/100</div>
+                                <div class="metric-rank">Rank: #${m.position_leadership_rank ?? 'N/A'}/343 (${m.position_leadership_percentile ?? 'N/A'}th percentile)</div>
+                            </div>
                             <div class="metric">
                                 <div class="metric-label">Activity Index</div>
                                 <div class="metric-value">${m.activity_index_score ?? 'N/A'}/10</div>
@@ -1072,8 +1174,8 @@
                             </div>
                             <div class="metric">
                                 <div class="metric-label">Tenure</div>
-                                <div class="metric-value">${m.years_in_house ?? 'N/A'}</div>
-                                <div class="metric-rank">${m.tenure_months ?? 'N/A'} months • ${electionsWon} elections</div>
+                                <div class="metric-value">${m.tenure_months ? (m.tenure_months >= 12 ? (m.tenure_months / 12).toFixed(1) + ' years' : m.tenure_months + ' months') : 'N/A'}</div>
+                                <div class="metric-rank">${electionsWon} elections won</div>
                             </div>
                         </div>
                     </div>
@@ -1090,10 +1192,10 @@
                                 </div>
                                 <div style="margin-top: 10px; font-size: 12px; font-weight: 500;">
                                     <div style="color: ${c.party.member_above_party_presence ? '#10b981' : '#ef4444'}">
-                                        ${c.party.member_above_party_presence ? '✓' : '✗'} Above party presence average
+                                        ${c.party.member_above_party_presence ? '✓ Above' : '✗ Below'} party presence average
                                     </div>
                                     <div style="color: ${c.party.member_above_party_activity ? '#10b981' : '#ef4444'}">
-                                        ${c.party.member_above_party_activity ? '✓' : '✗'} Above party activity average
+                                        ${c.party.member_above_party_activity ? '✓ Above' : '✗ Below'} party activity average
                                     </div>
                                 </div>
                             </div>
@@ -1105,7 +1207,7 @@
                                 </div>
                                 <div style="margin-top: 10px; font-size: 12px; font-weight: 500;">
                                     <div style="color: ${c.province.member_above_province_activity ? '#10b981' : '#ef4444'}">
-                                        ${c.province.member_above_province_activity ? '✓' : '✗'} Above province activity average
+                                        ${c.province.member_above_province_activity ? '✓ Above' : '✗ Below'} province activity average
                                     </div>
                                 </div>
                             </div>

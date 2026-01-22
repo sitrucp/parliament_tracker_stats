@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Parliament Analytics - Members Explorer</title>
+    <title>Parliament Tracker Stats - Members Explorer</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     <style>
         * {
@@ -116,6 +116,23 @@
             outline: none;
             border-color: #1e40af;
             box-shadow: 0 0 0 3px rgba(30, 64, 175, 0.1);
+        }
+
+        .reset-btn, .export-btn {
+            padding: 8px 16px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 500;
+            height: 38px;
+        }
+
+        .reset-btn:hover, .export-btn:hover {
+            background: #f3f4f6;
+            border-color: #1e40af;
         }
         
         .table-wrapper {
@@ -430,12 +447,14 @@
 </head>
 <body>
     <div class="header">
-        <h1>🏛️ Parliament Analytics</h1>
+        <h1>🏛️ Parliament Tracker Stats</h1>
         <p>House Members Activity Table (Parliament 45, Session 1)</p>
         <div class="breadcrumb">
             <span>Members Table</span>
             <span>→</span>
             <a href="/scatter.html">Tenure vs Activity Scatter Charts</a>
+            <span>→</span>
+            <a href="/member.html">Member Details</a>
         </div>
     </div>
 
@@ -476,6 +495,7 @@
                 <label>Sort By</label>
                 <select id="sortFilter">
                     <option value="activity_index_score">Activity Index (High→Low)</option>
+                    <option value="position_leadership_score">Leadership (High→Low)</option>
                     <option value="presence_rate">Presence Rate (High→Low)</option>
                     <option value="interventions_count">House Intrvn (High→Low)</option>
                     <option value="committee_interventions_count">Cmte Intrvn (High→Low)</option>
@@ -485,8 +505,9 @@
                     <option value="tenure_months">Tenure (Long→Short)</option>
                 </select>
             </div>
-            <div class="filter-group" style="justify-content: flex-end;">
-                <button class="reset-btn" onclick="resetAllFilters()">Reset All</button>
+            <div class="filter-group" style="flex-direction: row; align-items: flex-end; justify-content: flex-end; gap: 8px;">
+                <button class="reset-btn" onclick="resetAllFilters()">Reset</button>
+                <button class="export-btn" onclick="exportToCSV()">Export to CSV</button>
             </div>
         </div>
 
@@ -516,6 +537,7 @@
                             <th class="sortable">Party</th>
                             <th class="sortable">Province</th>
                             <th class="sortable">Presence %</th>
+                            <th class="sortable">Leadership</th>
                             <th class="sortable">Activity Index</th>
                             <th class="sortable">Tenure</th>
                             <th class="sortable">House Intrvn</th>
@@ -549,8 +571,8 @@
 
     <script>
         let allMembers = [];
-        let currentSortKey = null;
-        let sortAscending = false;
+        let currentSortKey = "name";
+        let sortAscending = true;
 
         const modal = document.getElementById("profileModal");
         const closeBtn = document.querySelector(".close");
@@ -571,6 +593,7 @@
             "Party": "party",
             "Province": "province",
             "Presence %": "presence_rate",
+            "Leadership": "position_leadership_score",
             "Activity Index": "activity_index_score",
             "Tenure": "tenure_months",
             "House Intrvn": "interventions_count",
@@ -631,12 +654,94 @@
             document.getElementById("partyFilter").value = "";
             document.getElementById("provinceFilter").value = "";
             document.getElementById("sortFilter").value = "activity_index_score";
-            currentSortKey = null;
-            sortAscending = false;
+            currentSortKey = "name";
+            sortAscending = true;
             document.querySelectorAll("th.sortable").forEach(th => {
                 th.classList.remove("sorted-asc", "sorted-desc");
             });
             renderTable();
+        }
+
+        function exportToCSV() {
+            const party = document.getElementById("partyFilter").value;
+            const province = document.getElementById("provinceFilter").value;
+            
+            // Use the same filtering logic as renderTable
+            let filtered = allMembers.filter(m => {
+                const getParty = (m) => m.caucus_short || m.caucus_short_name || m.party || m.caucus || "";
+                const getProvince = (m) => m.province || m.constituency_province_territory || m.constituency_province || "";
+                if (party && getParty(m) !== party) return false;
+                if (province && getProvince(m).toLowerCase() !== province.toLowerCase()) return false;
+                return true;
+            });
+
+            // CSV headers - complete member_stats fields
+            const headers = [
+                'person_id', 'name', 'full_name', 'party', 'caucus_short_name', 'province', 'constituency',
+                'presence_rate', 'present', 'paired', 'absent', 'total_votes',
+                'tenure_months', 'years_in_house', 'elections_won',
+                'interventions_count', 'committee_interventions_count', 'bills_sponsored_current',
+                'committees_count', 'associations_count',
+                'position_leadership_score', 'position_leadership_rank', 'position_leadership_percentile', 'position_leadership_score_percentile_in_party',
+                'activity_index_score', 'activity_index_rank', 'activity_index_percentile', 'activity_index_score_percentile', 'activity_index_score_percentile_in_party', 'activity_index_score_rank',
+                'associations_count_percentile', 'associations_count_percentile_in_party', 'associations_count_rank',
+                'bills_sponsored_current_percentile', 'bills_sponsored_current_percentile_in_party', 'bills_sponsored_current_rank',
+                'chamber',
+                'committee_interventions_count_percentile', 'committee_interventions_count_percentile_in_party', 'committee_interventions_count_rank', 'committee_per_month',
+                'committees_count_percentile', 'committees_count_percentile_in_party', 'committees_count_rank',
+                'computed_at',
+                'interventions_count_percentile', 'interventions_count_percentile_in_party', 'interventions_count_rank', 'interventions_per_month',
+                'metrics_version', 'parliament', 'political_alignment_score',
+                'presence_rate_percentile', 'presence_rate_percentile_in_party', 'presence_rate_rank',
+                'session',
+                'tenure_months_percentile', 'tenure_months_percentile_in_party', 'tenure_months_rank'
+            ];
+
+            // CSV rows - map all fields
+            const rows = filtered.map(m => [
+                m.person_id || '', m.name || '', m.full_name || m.name || '', m.party || '', m.caucus_short_name || '', m.province || '', m.constituency || '',
+                m.presence_rate || '', m.present || '', m.paired || '', m.absent || '', m.total_votes || '',
+                m.tenure_months || '', m.years_in_house || '', m.elections_won || '',
+                m.interventions_count || '', m.committee_interventions_count || '', m.bills_sponsored_current || '',
+                m.committees_count || '', m.associations_count || '',
+                m.position_leadership_score || '', m.position_leadership_rank || '', m.position_leadership_percentile || '', m.position_leadership_score_percentile_in_party || '',
+                m.activity_index_score || '', m.activity_index_rank || '', m.activity_index_percentile || '', m.activity_index_score_percentile || '', m.activity_index_score_percentile_in_party || '', m.activity_index_score_rank || '',
+                m.associations_count_percentile || '', m.associations_count_percentile_in_party || '', m.associations_count_rank || '',
+                m.bills_sponsored_current_percentile || '', m.bills_sponsored_current_percentile_in_party || '', m.bills_sponsored_current_rank || '',
+                m.chamber || '',
+                m.committee_interventions_count_percentile || '', m.committee_interventions_count_percentile_in_party || '', m.committee_interventions_count_rank || '', m.committee_per_month || '',
+                m.committees_count_percentile || '', m.committees_count_percentile_in_party || '', m.committees_count_rank || '',
+                m.computed_at || '',
+                m.interventions_count_percentile || '', m.interventions_count_percentile_in_party || '', m.interventions_count_rank || '', m.interventions_per_month || '',
+                m.metrics_version || '', m.parliament || '', m.political_alignment_score || '',
+                m.presence_rate_percentile || '', m.presence_rate_percentile_in_party || '', m.presence_rate_rank || '',
+                m.session || '',
+                m.tenure_months_percentile || '', m.tenure_months_percentile_in_party || '', m.tenure_months_rank || ''
+            ]);
+
+            // Convert to CSV string
+            const csvContent = [
+                headers.join(','),
+                ...rows.map(row => row.map(cell => {
+                    // Escape cells containing commas or quotes
+                    const cellStr = String(cell);
+                    if (cellStr.includes(',') || cellStr.includes('"') || cellStr.includes('\n')) {
+                        return `"${cellStr.replace(/"/g, '""')}"`;
+                    }
+                    return cellStr;
+                }).join(','))
+            ].join('\n');
+
+            // Create download link with UTF-8 BOM for proper Excel encoding
+            const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', `house_members_data_p45_s1.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
         }
 
         function renderTable() {
@@ -658,6 +763,7 @@
             };
             const getProvince = (m) => m.province || m.constituency_province_territory || m.constituency_province || "";
             const getTenureMonths = (m) => m.tenure_months ?? 0;
+            const getLeadershipScore = (m) => parseFloat(m.position_leadership_score ?? 0);
             const getInterventions = (m) => m.interventions_count ?? 0;
             const getCommitteeInterventions = (m) => m.committee_interventions_count ?? 0;
             const formatTenure = (months) => {
@@ -692,6 +798,10 @@
                         case "activity_index_score":
                             aVal = parseFloat(a.activity_index_score) ?? 0;
                             bVal = parseFloat(b.activity_index_score) ?? 0;
+                            break;
+                        case "position_leadership_score":
+                            aVal = parseFloat(a.position_leadership_score) ?? 0;
+                            bVal = parseFloat(b.position_leadership_score) ?? 0;
                             break;
                         case "presence_rate":
                             aVal = parseFloat(a.presence_rate) ?? 0;
@@ -740,11 +850,12 @@
 
             const tbody = document.getElementById("membersTableBody");
             tbody.innerHTML = filtered.map(m => `
-                <tr onclick="showProfile('${m.person_id}')">
+                <tr onclick="window.location.href='/member.html?id=${m.person_id}'" style="cursor: pointer;">
                     <td class="name">${m.name || m.full_name || m.person_name || `${m.first_name || ''} ${m.last_name || ''}`.trim()}</td>
                     <td>${getPartyDisplay(m)}</td>
                     <td>${getProvince(m)}</td>
                     <td class="number">${m.presence_rate ?? 0}</td>
+                    <td class="number">${getLeadershipScore(m).toFixed(1)}</td>
                     <td class="number">${m.activity_index_score ?? 0}</td>
                     <td class="number">${formatTenure(getTenureMonths(m))}</td>
                     <td class="number">${getInterventions(m)}</td>
@@ -818,6 +929,11 @@
                         <h3>Activity & Engagement</h3>
                         <div class="metrics-grid">
                             <div class="metric">
+                                <div class="metric-label">Leadership Score</div>
+                                <div class="metric-value">${m.position_leadership_score != null ? Number(m.position_leadership_score).toFixed(1) : 'N/A'}/100</div>
+                                <div class="metric-rank">Rank: #${m.position_leadership_rank ?? 'N/A'}/343 (${m.position_leadership_percentile ?? 'N/A'}th percentile)</div>
+                            </div>
+                            <div class="metric">
                                 <div class="metric-label">Activity Index</div>
                                 <div class="metric-value">${m.activity_index_score ?? 'N/A'}/10</div>
                                 <div class="metric-rank">Rank: #${activityRank}/343 (${activityPercentile}th percentile)</div>
@@ -850,8 +966,8 @@
                             </div>
                             <div class="metric">
                                 <div class="metric-label">Tenure</div>
-                                <div class="metric-value">${m.years_in_house ?? 'N/A'}</div>
-                                <div class="metric-rank">${m.tenure_months ?? 'N/A'} months • ${electionsWon} elections</div>
+                                <div class="metric-value">${m.tenure_months ? (m.tenure_months >= 12 ? (m.tenure_months / 12).toFixed(1) + ' years' : m.tenure_months + ' months') : 'N/A'}</div>
+                                <div class="metric-rank">${electionsWon} elections won</div>
                             </div>
                         </div>
                     </div>
@@ -868,10 +984,10 @@
                                 </div>
                                 <div style="margin-top: 10px; font-size: 12px; font-weight: 500;">
                                     <div style="color: ${c.party.member_above_party_presence ? '#10b981' : '#ef4444'}">
-                                        ${c.party.member_above_party_presence ? '✓' : '✗'} Above party presence average
+                                        ${c.party.member_above_party_presence ? '✓ Above' : '✗ Below'} party presence average
                                     </div>
                                     <div style="color: ${c.party.member_above_party_activity ? '#10b981' : '#ef4444'}">
-                                        ${c.party.member_above_party_activity ? '✓' : '✗'} Above party activity average
+                                        ${c.party.member_above_party_activity ? '✓ Above' : '✗ Below'} party activity average
                                     </div>
                                 </div>
                             </div>
@@ -883,7 +999,7 @@
                                 </div>
                                 <div style="margin-top: 10px; font-size: 12px; font-weight: 500;">
                                     <div style="color: ${c.province.member_above_province_activity ? '#10b981' : '#ef4444'}">
-                                        ${c.province.member_above_province_activity ? '✓' : '✗'} Above province activity average
+                                        ${c.province.member_above_province_activity ? '✓ Above' : '✗ Below'} province activity average
                                     </div>
                                 </div>
                             </div>

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MP Profile - Parliament Analytics</title>
+    <title>Parliament Tracker Stats - MP Profile</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     <style>
         * {
@@ -26,24 +26,35 @@
         }
         
         .header h1 {
-            font-size: 24px;
+            font-size: 28px;
             margin-bottom: 10px;
         }
         
-        .header a {
-            color: rgba(255, 255, 255, 0.8);
-            text-decoration: none;
+        .header p {
             font-size: 14px;
-            display: inline-block;
-            margin-top: 10px;
-            padding: 8px 15px;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 4px;
-            transition: background 0.2s;
+            opacity: 0.9;
         }
         
-        .header a:hover {
-            background: rgba(255, 255, 255, 0.2);
+        .breadcrumb {
+            font-size: 12px;
+            opacity: 0.8;
+            margin-top: 10px;
+        }
+        
+        .breadcrumb a {
+            color: white;
+            text-decoration: none;
+            transition: opacity 0.2s;
+        }
+        
+        .breadcrumb a:hover {
+            opacity: 1;
+            text-decoration: underline;
+        }
+        
+        .breadcrumb span {
+            margin: 0 5px;
+            opacity: 0.6;
         }
         
         .container {
@@ -78,6 +89,16 @@
             font-size: 14px;
             background: white;
             cursor: pointer;
+        }
+        
+        .mp-selector input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            background: white;
+            margin-bottom: 8px;
         }
         
         .profile-wrapper {
@@ -254,6 +275,77 @@
         .vote-no { background: #ef4444; }
         .vote-paired { background: #f59e0b; }
         
+        .record-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            font-size: 13px;
+            background: white;
+            border-radius: 4px;
+            overflow: hidden;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        }
+        
+        .record-table thead {
+            background: #f9fafb;
+            border-bottom: 2px solid #e5e7eb;
+        }
+        
+        .record-table th {
+            padding: 10px 12px;
+            text-align: left;
+            font-size: 11px;
+            font-weight: 600;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .record-table td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #e5e7eb;
+            color: #333;
+            vertical-align: top;
+        }
+        
+        .record-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+        
+        .record-table tbody tr:hover {
+            background: #f9fafb;
+        }
+        
+        .record-badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-size: 11px;
+            font-weight: 600;
+            background: #e0e7ff;
+            color: #3730a3;
+        }
+        
+        .record-badge.active {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        
+        .record-badge.ended {
+            background: #e5e7eb;
+            color: #6b7280;
+        }
+        
+        .record-badge.won {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        
+        .record-badge.defeated {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        
         @media (max-width: 768px) {
             .profile-header {
                 flex-direction: column;
@@ -267,18 +359,34 @@
             .metrics-grid {
                 grid-template-columns: 1fr;
             }
+            
+            .record-table {
+                font-size: 12px;
+            }
+            
+            .record-table th, .record-table td {
+                padding: 8px;
+            }
         }
     </style>
 </head>
 <body>
     <div class="header">
-        <h1>🏛️ Parliament Analytics - Member Profile</h1>
-        <a href="/">← Back to Members List</a>
+        <h1>🏛️ Parliament Tracker Stats</h1>
+        <p>Member Profile Search (Parliament 45, Session 1)</p>
+        <div class="breadcrumb">
+            <a href="/">Members Table</a>
+            <span>→</span>
+            <a href="/scatter.html">Tenure vs Activity Scatter Charts</a>
+            <span>→</span>
+            <span>Member Details</span>
+        </div>
     </div>
 
     <div class="container">
         <div class="mp-selector">
             <label for="mpSelect">Select a Member of Parliament</label>
+            <input id="mpSearch" type="text" placeholder="Search by name, party, province, or riding" />
             <select id="mpSelect">
                 <option value="">Loading...</option>
             </select>
@@ -299,20 +407,32 @@
                     <div class="score-number" id="activityScore">-</div>
                     <div class="score-label">Activity Index</div>
                 </div>
+                <div class="activity-score">
+                    <div class="score-number" id="leadershipScore">-</div>
+                    <div class="score-label">Leadership Score</div>
+                </div>
             </div>
 
             <div class="profile-section">
-                <h3>Voting Performance</h3>
+                <h3>Composite Metrics</h3>
                 <div class="metrics-grid">
                     <div class="metric">
-                        <div class="metric-label">Presence Rate</div>
-                        <div class="metric-value" id="presenceRate">-</div>
-                        <div class="metric-detail" id="presenceRank">-</div>
+                        <div class="metric-label">Activity Index Score</div>
+                        <div class="metric-value" id="activityIndexValue">-</div>
+                        <div class="metric-detail" style="font-size: 11px;">
+                            <div>Rank: <strong id="activityIndexRank">-</strong></div>
+                            <div>Overall: <span id="activityIndexPercentile">-</span></div>
+                            <div>In Party: <span id="activityIndexPercentileInParty">-</span></div>
+                        </div>
                     </div>
                     <div class="metric">
-                        <div class="metric-label">Total Votes</div>
-                        <div class="metric-value" id="totalVotes">-</div>
-                        <div class="vote-breakdown" id="voteBreakdown"></div>
+                        <div class="metric-label">Position Leadership Score</div>
+                        <div class="metric-value" id="leadershipScoreValue">-</div>
+                        <div class="metric-detail" style="font-size: 11px;">
+                            <div>Rank: <strong id="leadershipRank">-</strong></div>
+                            <div>Overall: <span id="leadershipPercentile">-</span></div>
+                            <div>In Party: <span id="leadershipPercentileInParty">-</span></div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -321,50 +441,108 @@
                 <h3>Parliamentary Activity</h3>
                 <div class="metrics-grid">
                     <div class="metric">
-                        <div class="metric-label">Interventions</div>
+                        <div class="metric-label">House Interventions</div>
                         <div class="metric-value" id="interventions">-</div>
-                        <div class="metric-detail" id="interventionsPerMonth">-</div>
+                        <div class="metric-detail" style="font-size: 11px;">
+                            <div><span id="interventionsPerMonth">-</span> per month</div>
+                            <div>Rank: <strong id="interventionsRank">-</strong></div>
+                            <div>Overall: <span id="interventionsPercentile">-</span></div>
+                            <div>In Party: <span id="interventionsPercentileInParty">-</span></div>
+                        </div>
                     </div>
                     <div class="metric">
-                        <div class="metric-label">Committee Work</div>
+                        <div class="metric-label">Committee Interventions</div>
                         <div class="metric-value" id="committeeInterventions">-</div>
-                        <div class="metric-detail" id="committeePerMonth">-</div>
+                        <div class="metric-detail" style="font-size: 11px;">
+                            <div><span id="committeePerMonth">-</span> per month</div>
+                            <div>Rank: <strong id="committeeInterventionsRank">-</strong></div>
+                            <div>Overall: <span id="committeeInterventionsPercentile">-</span></div>
+                            <div>In Party: <span id="committeeInterventionsPercentileInParty">-</span></div>
+                        </div>
                     </div>
                     <div class="metric">
                         <div class="metric-label">Bills Sponsored</div>
                         <div class="metric-value" id="billsSponsored">-</div>
-                        <div class="metric-detail">In current session</div>
-                    </div>
-                    <div class="metric">
-                        <div class="metric-label">Tenure</div>
-                        <div class="metric-value" id="tenure">-</div>
-                        <div class="metric-detail" id="tenureDetail">-</div>
+                        <div class="metric-detail" style="font-size: 11px;">
+                            <div>In current session</div>
+                            <div>Rank: <strong id="billsRank">-</strong></div>
+                            <div>Overall: <span id="billsPercentile">-</span></div>
+                            <div>In Party: <span id="billsPercentileInParty">-</span></div>
+                        </div>
                     </div>
                     <div class="metric">
                         <div class="metric-label">Committees</div>
-                        <div class="metric-value" id="committees">-</div>
-                        <div class="metric-detail">Currently serving</div>
+                        <div class="metric-value" id="committeesValue">-</div>
+                        <div class="metric-detail" style="font-size: 11px;">
+                            <div>Currently serving</div>
+                            <div>Rank: <strong id="committeesRank">-</strong></div>
+                            <div>Overall: <span id="committeesPercentile">-</span></div>
+                            <div>In Party: <span id="committeesPercentileInParty">-</span></div>
+                        </div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-label">Associations</div>
+                        <div class="metric-value" id="associationsValue">-</div>
+                        <div class="metric-detail" style="font-size: 11px;">
+                            <div>Memberships</div>
+                            <div>Rank: <strong id="associationsRank">-</strong></div>
+                            <div>Overall: <span id="associationsPercentile">-</span></div>
+                            <div>In Party: <span id="associationsPercentileInParty">-</span></div>
+                        </div>
                     </div>
                 </div>
             </div>
 
             <div class="profile-section">
-                <h3>Ranking & Percentiles</h3>
+                <h3>Voting Performance</h3>
                 <div class="metrics-grid">
                     <div class="metric">
-                        <div class="metric-label">Activity Index Rank</div>
-                        <div class="metric-value" id="activityRank">-</div>
-                        <div class="metric-detail" id="activityPercentile">-</div>
+                        <div class="metric-label">Presence Rate</div>
+                        <div class="metric-value" id="presenceRate">-</div>
+                        <div class="metric-detail" style="font-size: 11px;">
+                            <div>Rank: <strong id="presenceRankValue">-</strong></div>
+                            <div>Overall: <span id="presencePercentile">-</span></div>
+                            <div>In Party: <span id="presencePercentileInParty">-</span></div>
+                        </div>
                     </div>
                     <div class="metric">
-                        <div class="metric-label">Presence Rank</div>
-                        <div class="metric-value" id="presenceRankValue">-</div>
-                        <div class="metric-detail" id="presencePercentile">-</div>
+                        <div class="metric-label">Total Votes</div>
+                        <div class="metric-value" id="totalVotes">-</div>
+                        <div class="metric-detail" style="font-size: 11px;">
+                            <div>Present: <span id="presentVotes">-</span></div>
+                            <div>Absent: <span id="absentVotes">-</span></div>
+                            <div>Paired: <span id="pairedVotes">-</span></div>
+                        </div>
+                        <div class="vote-breakdown" id="voteBreakdown"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="profile-section">
+                <h3>Experience & Tenure</h3>
+                <div class="metrics-grid">
+                    <div class="metric">
+                        <div class="metric-label">Tenure (Months)</div>
+                        <div class="metric-value" id="tenureMonths">-</div>
+                        <div class="metric-detail" style="font-size: 11px;">
+                            <div>Rank: <strong id="tenureRank">-</strong></div>
+                            <div>Overall: <span id="tenurePercentile">-</span></div>
+                            <div>In Party: <span id="tenurePercentileInParty">-</span></div>
+                        </div>
                     </div>
                     <div class="metric">
-                        <div class="metric-label">Activity in Party</div>
-                        <div class="metric-value" id="activityPartyPercentile">-</div>
-                        <div class="metric-detail">Percentile within caucus</div>
+                        <div class="metric-label">Years in House</div>
+                        <div class="metric-value" id="yearsInHouse">-</div>
+                        <div class="metric-detail" style="font-size: 11px;">
+                            <div>Total experience</div>
+                        </div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-label">Elections Won</div>
+                        <div class="metric-value" id="electionsWon">-</div>
+                        <div class="metric-detail" style="font-size: 11px;">
+                            <div>Times elected</div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -376,11 +554,54 @@
                     <div class="metric comparison" id="provinceComparison"></div>
                 </div>
             </div>
+
+            <div class="profile-section">
+                <h3>All Positions & Roles</h3>
+                <div id="allPositionsSection">
+                    <p style="color: #999;">No positions data available</p>
+                </div>
+            </div>
+
+            <div class="profile-section">
+                <h3>Committee Memberships</h3>
+                <div id="committeesSection">
+                    <p style="color: #999;">No committee data available</p>
+                </div>
+            </div>
+
+            <div class="profile-section">
+                <h3>Election History</h3>
+                <div id="electionHistorySection">
+                    <p style="color: #999;">No election history available</p>
+                </div>
+            </div>
+
+            <div class="profile-section">
+                <h3>Caucus Roles</h3>
+                <div id="caucusRolesSection">
+                    <p style="color: #999;">No caucus roles data available</p>
+                </div>
+            </div>
+
+            <div class="profile-section">
+                <h3>Associations</h3>
+                <div id="associationsSection">
+                    <p style="color: #999;">No associations data available</p>
+                </div>
+            </div>
         </div>
     </div>
 
     <script>
         let allMembers = [];
+        let houseMembers = [];
+
+        function renderMemberOptions(list) {
+            const select = document.getElementById("mpSelect");
+            const sorted = (list || []).slice().sort((a, b) => (a.name || '').localeCompare(b.name || '', 'en', { sensitivity: 'base' }));
+            select.innerHTML = '<option value="">Select a member...</option>' +
+                sorted.map(m => `<option value="${m.person_id}">${m.name} (${m.party})</option>`).join("");
+        }
 
         async function loadMembers() {
             try {
@@ -389,14 +610,39 @@
                 allMembers = data.members || [];
                 
                 const select = document.getElementById("mpSelect");
-                select.innerHTML = '<option value="">Select a member...</option>' +
-                    allMembers.map(m => `<option value="${m.person_id}">${m.name} (${m.party})</option>`).join("");
+                const search = document.getElementById("mpSearch");
+                houseMembers = (allMembers || []).filter(m => (m.caucus_short_name || '').toLowerCase() !== 'senate');
+                renderMemberOptions(houseMembers);
                 
                 select.addEventListener("change", (e) => {
                     if (e.target.value) {
                         loadProfile(e.target.value);
                     }
                 });
+                
+                if (search) {
+                    search.addEventListener("input", () => {
+                        const q = search.value.trim().toLowerCase();
+                        const filtered = q
+                            ? houseMembers.filter(m => {
+                                const fields = [m.name, m.party, m.province, m.constituency];
+                                return fields.some(v => (v || '').toLowerCase().includes(q));
+                              })
+                            : houseMembers.slice();
+                        renderMemberOptions(filtered);
+                    });
+                }
+                
+                // Check for URL parameter ?id=
+                const urlParams = new URLSearchParams(window.location.search);
+                const personId = urlParams.get('id');
+                if (personId) {
+                    select.value = personId;
+                    const sel = (houseMembers || []).find(m => String(m.person_id) === String(personId));
+                    const search = document.getElementById("mpSearch");
+                    if (sel && search) search.value = sel.name || '';
+                    loadProfile(personId);
+                }
             } catch (error) {
                 console.error("Error loading members:", error);
                 document.getElementById("mpSelect").innerHTML = '<option>Error loading members</option>';
@@ -416,39 +662,81 @@
                 document.getElementById("profileConstituency").textContent = m.constituency;
                 document.getElementById("partyBadge").textContent = m.party;
                 document.getElementById("provinceBadge").textContent = m.province;
-                document.getElementById("activityScore").textContent = m.activity_index_score;
+                document.getElementById("leadershipScore").textContent = Number(m.position_leadership_score ?? 0).toFixed(1);
+                document.getElementById("activityScore").textContent = Number(m.activity_index_score ?? 0).toFixed(1);
 
-                // Voting performance
-                document.getElementById("presenceRate").textContent = `${m.presence_rate}%`;
-                document.getElementById("presenceRank").textContent = 
-                    `Rank: #${m.presence_rank}/343 (${m.presence_percentile}th percentile) | In party: ${m.presence_percentile_in_party}th`;
+                // Composite Metrics - Activity Index
+                document.getElementById("activityIndexValue").textContent = Number(m.activity_index_score ?? 0).toFixed(2);
+                document.getElementById("activityIndexRank").textContent = `#${m.activity_index_score_rank || '-'}`;
+                document.getElementById("activityIndexPercentile").textContent = `${m.activity_index_score_percentile || '-'}th percentile`;
+                document.getElementById("activityIndexPercentileInParty").textContent = `${m.activity_index_score_percentile_in_party || '-'}th percentile`;
+
+                // Composite Metrics - Leadership Score
+                document.getElementById("leadershipScoreValue").textContent = Number(m.position_leadership_score ?? 0).toFixed(2);
+                document.getElementById("leadershipRank").textContent = `#${m.position_leadership_score_rank || '-'}`;
+                document.getElementById("leadershipPercentile").textContent = `${m.position_leadership_score_percentile || '-'}th percentile`;
+                document.getElementById("leadershipPercentileInParty").textContent = `${m.position_leadership_score_percentile_in_party || '-'}th percentile`;
+
+                // Parliamentary Activity - Interventions
+                document.getElementById("interventions").textContent = m.interventions_count || 0;
+                document.getElementById("interventionsPerMonth").textContent = m.interventions_per_month || '0';
+                document.getElementById("interventionsRank").textContent = `#${m.interventions_count_rank || '-'}`;
+                document.getElementById("interventionsPercentile").textContent = `${m.interventions_count_percentile || '-'}th percentile`;
+                document.getElementById("interventionsPercentileInParty").textContent = `${m.interventions_count_percentile_in_party || '-'}th percentile`;
+
+                // Parliamentary Activity - Committee Interventions
+                document.getElementById("committeeInterventions").textContent = m.committee_interventions_count || 0;
+                document.getElementById("committeePerMonth").textContent = m.committee_per_month || '0';
+                document.getElementById("committeeInterventionsRank").textContent = `#${m.committee_interventions_count_rank || '-'}`;
+                document.getElementById("committeeInterventionsPercentile").textContent = `${m.committee_interventions_count_percentile || '-'}th percentile`;
+                document.getElementById("committeeInterventionsPercentileInParty").textContent = `${m.committee_interventions_count_percentile_in_party || '-'}th percentile`;
+
+                // Parliamentary Activity - Bills
+                document.getElementById("billsSponsored").textContent = m.bills_sponsored_current || 0;
+                document.getElementById("billsRank").textContent = `#${m.bills_sponsored_current_rank || '-'}`;
+                document.getElementById("billsPercentile").textContent = `${m.bills_sponsored_current_percentile || '-'}th percentile`;
+                document.getElementById("billsPercentileInParty").textContent = `${m.bills_sponsored_current_percentile_in_party || '-'}th percentile`;
+
+                // Parliamentary Activity - Committees
+                document.getElementById("committeesValue").textContent = m.committees_count || 0;
+                document.getElementById("committeesRank").textContent = `#${m.committees_count_rank || '-'}`;
+                document.getElementById("committeesPercentile").textContent = `${m.committees_count_percentile || '-'}th percentile`;
+                document.getElementById("committeesPercentileInParty").textContent = `${m.committees_count_percentile_in_party || '-'}th percentile`;
+
+                // Parliamentary Activity - Associations
+                document.getElementById("associationsValue").textContent = m.associations_count || 0;
+                document.getElementById("associationsRank").textContent = `#${m.associations_count_rank || '-'}`;
+                document.getElementById("associationsPercentile").textContent = `${m.associations_count_percentile || '-'}th percentile`;
+                document.getElementById("associationsPercentileInParty").textContent = `${m.associations_count_percentile_in_party || '-'}th percentile`;
+
+                // Voting Performance - Presence Rate
+                document.getElementById("presenceRate").textContent = `${Number(m.presence_rate ?? 0).toFixed(1)}%`;
+                document.getElementById("presenceRankValue").textContent = `#${m.presence_rate_rank || '-'}`;
+                document.getElementById("presencePercentile").textContent = `${m.presence_rate_percentile || '-'}th percentile`;
+                document.getElementById("presencePercentileInParty").textContent = `${m.presence_rate_percentile_in_party || '-'}th percentile`;
+
+                // Voting Performance - Total Votes
+                document.getElementById("totalVotes").textContent = m.total_votes || 0;
+                document.getElementById("presentVotes").textContent = m.present || 0;
+                document.getElementById("absentVotes").textContent = m.absent || 0;
+                document.getElementById("pairedVotes").textContent = m.paired || 0;
                 
-                document.getElementById("totalVotes").textContent = m.total_votes;
-                const presentPct = (m.present / m.total_votes * 100).toFixed(0);
-                const absentPct = (m.absent / m.total_votes * 100).toFixed(0);
-                const pairedPct = (m.paired / m.total_votes * 100).toFixed(0);
+                const presentPct = m.total_votes > 0 ? (m.present / m.total_votes * 100).toFixed(0) : 0;
+                const absentPct = m.total_votes > 0 ? (m.absent / m.total_votes * 100).toFixed(0) : 0;
+                const pairedPct = m.total_votes > 0 ? (m.paired / m.total_votes * 100).toFixed(0) : 0;
                 document.getElementById("voteBreakdown").innerHTML = `
-                    <span class="vote-yes" style="width: ${presentPct}%">${m.present}</span>
-                    <span class="vote-no" style="width: ${absentPct}%">${m.absent}</span>
-                    <span class="vote-paired" style="width: ${pairedPct}%">${m.paired}</span>
+                    <span class="vote-yes" style="width: ${presentPct}%">${m.present || 0}</span>
+                    <span class="vote-no" style="width: ${absentPct}%">${m.absent || 0}</span>
+                    <span class="vote-paired" style="width: ${pairedPct}%">${m.paired || 0}</span>
                 `;
 
-                // Activity
-                document.getElementById("interventions").textContent = m.interventions_count;
-                document.getElementById("interventionsPerMonth").textContent = `${m.interventions_per_month} per month`;
-                document.getElementById("committeeInterventions").textContent = m.committee_interventions_count;
-                document.getElementById("committeePerMonth").textContent = `${m.committee_per_month} per month`;
-                document.getElementById("billsSponsored").textContent = m.bills_sponsored_current;
-                document.getElementById("tenure").textContent = `${m.years_in_house}y`;
-                document.getElementById("tenureDetail").textContent = `${m.tenure_months} months • ${m.elections_won} elections`;
-                document.getElementById("committees").textContent = m.committees_current;
-
-                // Rankings
-                document.getElementById("activityRank").textContent = `#${m.activity_index_rank}`;
-                document.getElementById("activityPercentile").textContent = `${m.activity_index_percentile}th percentile overall`;
-                document.getElementById("presenceRankValue").textContent = `#${m.presence_rank}`;
-                document.getElementById("presencePercentile").textContent = `${m.presence_percentile}th percentile overall`;
-                document.getElementById("activityPartyPercentile").textContent = `${m.activity_index_percentile_in_party}th`;
+                // Experience & Tenure
+                document.getElementById("tenureMonths").textContent = m.tenure_months || 0;
+                document.getElementById("tenureRank").textContent = `#${m.tenure_months_rank || '-'}`;
+                document.getElementById("tenurePercentile").textContent = `${m.tenure_months_percentile || '-'}th percentile`;
+                document.getElementById("tenurePercentileInParty").textContent = `${m.tenure_months_percentile_in_party || '-'}th percentile`;
+                document.getElementById("yearsInHouse").textContent = m.years_in_house || 0;
+                document.getElementById("electionsWon").textContent = m.elections_won || 0;
 
                 // Comparisons
                 const partyClass = c.party.member_above_party_activity ? "above" : "below";
@@ -461,10 +749,10 @@
                     </div>
                     <div style="margin-top: 10px; font-size: 12px; font-weight: 500;">
                         <div style="color: ${c.party.member_above_party_presence ? '#10b981' : '#ef4444'};">
-                            ${c.party.member_above_party_presence ? '✓' : '✗'} Above presence avg
+                            ${c.party.member_above_party_presence ? '✓ Above presence avg' : '✗ Below presence avg'}
                         </div>
                         <div style="color: ${c.party.member_above_party_activity ? '#10b981' : '#ef4444'};">
-                            ${c.party.member_above_party_activity ? '✓' : '✗'} Above activity avg
+                            ${c.party.member_above_party_activity ? '✓ Above activity avg' : '✗ Below activity avg'}
                         </div>
                     </div>
                 `;
@@ -479,11 +767,189 @@
                     </div>
                     <div style="margin-top: 10px; font-size: 12px; font-weight: 500;">
                         <div style="color: ${c.province.member_above_province_activity ? '#10b981' : '#ef4444'};">
-                            ${c.province.member_above_province_activity ? '✓' : '✗'} Above province avg
+                            ${c.province.member_above_province_activity ? '✓ Above province avg' : '✗ Below province avg'}
                         </div>
                     </div>
                 `;
                 document.getElementById("provinceComparison").className = `metric comparison ${provinceClass}`;
+
+                // Helper function to format dates
+                const formatDate = (dateStr) => {
+                    if (!dateStr) return 'Present';
+                    const date = new Date(dateStr);
+                    return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+                };
+
+                // All Positions & Roles
+                const details = data.details || {};
+                if (details.all_positions && details.all_positions.length > 0) {
+                    const positionsHTML = `
+                        <table class="record-table">
+                            <thead>
+                                <tr>
+                                    <th>Title</th>
+                                    <th>From</th>
+                                    <th>To</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${details.all_positions.map(pos => {
+                                    const isActive = !pos.to_datetime;
+                                    return `
+                                        <tr>
+                                            <td><strong>${pos.title || 'Unknown Position'}</strong></td>
+                                            <td>${formatDate(pos.from_datetime)}</td>
+                                            <td>${formatDate(pos.to_datetime)}</td>
+                                            <td><span class="record-badge ${isActive ? 'active' : 'ended'}">${isActive ? 'Active' : 'Ended'}</span></td>
+                                        </tr>
+                                    `;
+                                }).join('')}
+                            </tbody>
+                        </table>
+                    `;
+                    document.getElementById("allPositionsSection").innerHTML = positionsHTML;
+                } else {
+                    document.getElementById("allPositionsSection").innerHTML = '<p style="color: #999;">No positions data available</p>';
+                }
+
+                // Committees
+                if (details.committees && details.committees.length > 0) {
+                    const committeesHTML = `
+                        <table class="record-table">
+                            <thead>
+                                <tr>
+                                    <th>Committee</th>
+                                    <th>Role</th>
+                                    <th>From</th>
+                                    <th>To</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${details.committees.map(comm => {
+                                    const isActive = !comm.to_datetime;
+                                    return `
+                                        <tr>
+                                            <td><strong>${comm.committee_name || 'Unknown Committee'}</strong></td>
+                                            <td>${comm.role_name || 'Member'}</td>
+                                            <td>${formatDate(comm.from_datetime)}</td>
+                                            <td>${formatDate(comm.to_datetime)}</td>
+                                            <td><span class="record-badge ${isActive ? 'active' : 'ended'}">${isActive ? 'Active' : 'Ended'}</span></td>
+                                        </tr>
+                                    `;
+                                }).join('')}
+                            </tbody>
+                        </table>
+                    `;
+                    document.getElementById("committeesSection").innerHTML = committeesHTML;
+                } else {
+                    document.getElementById("committeesSection").innerHTML = '<p style="color: #999;">No committee data available</p>';
+                }
+
+                // Associations
+                if (details.associations && details.associations.length > 0) {
+                    const associationsHTML = `
+                        <table class="record-table">
+                            <thead>
+                                <tr>
+                                    <th>Organization</th>
+                                    <th>Role</th>
+                                    <th>From</th>
+                                    <th>To</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${details.associations.map(assoc => {
+                                    const organization = assoc.organization || assoc.organization_name || assoc.association || assoc.name || 'Unknown Organization';
+                                    const role = assoc.role_type || assoc.role || assoc.position || assoc.title || assoc.role_name || 'Member';
+                                    const fromDate = assoc.from_datetime || assoc.start_date || assoc.from_date;
+                                    const toDate = assoc.to_datetime || assoc.end_date || assoc.to_date;
+                                    const isActive = !toDate;
+                                    return `
+                                        <tr>
+                                            <td><strong>${organization}</strong></td>
+                                            <td>${role}</td>
+                                            <td>${formatDate(fromDate)}</td>
+                                            <td>${formatDate(toDate)}</td>
+                                            <td><span class="record-badge ${isActive ? 'active' : 'ended'}">${isActive ? 'Active' : 'Ended'}</span></td>
+                                        </tr>
+                                    `;
+                                }).join('')}
+                            </tbody>
+                        </table>
+                    `;
+                    document.getElementById("associationsSection").innerHTML = associationsHTML;
+                } else {
+                    document.getElementById("associationsSection").innerHTML = '<p style="color: #999;">No associations data available</p>';
+                }
+
+                // Election History
+                if (details.election_history && details.election_history.length > 0) {
+                    const electionsHTML = `
+                        <table class="record-table">
+                            <thead>
+                                <tr>
+                                    <th>Election Date</th>
+                                    <th>Constituency</th>
+                                    <th>Party</th>
+                                    <th>Result</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${details.election_history
+                                    .sort((a, b) => new Date(b.election_date) - new Date(a.election_date))
+                                    .map(elec => {
+                                        const resultType = (elec.election_result_type || '').toLowerCase();
+                                        const isWon = resultType.includes('elected') || resultType.includes('won');
+                                        return `
+                                            <tr>
+                                                <td><strong>${formatDate(elec.election_date)}</strong></td>
+                                                <td>${elec.constituency_name || 'N/A'}</td>
+                                                <td>${elec.political_party_name || 'N/A'}</td>
+                                                <td><span class="record-badge ${isWon ? 'won' : 'defeated'}">${elec.election_result_type || 'Unknown'}</span></td>
+                                            </tr>
+                                        `;
+                                    }).join('')}
+                            </tbody>
+                        </table>
+                    `;
+                    document.getElementById("electionHistorySection").innerHTML = electionsHTML;
+                } else {
+                    document.getElementById("electionHistorySection").innerHTML = '<p style="color: #999;">No election history available</p>';
+                }
+
+                // Caucus Roles
+                if (details.caucus_roles && details.caucus_roles.length > 0) {
+                    const caucusHTML = `
+                        <table class="record-table">
+                            <thead>
+                                <tr>
+                                    <th>Parliament</th>
+                                    <th>Caucus</th>
+                                    <th>From</th>
+                                    <th>To</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${details.caucus_roles.map(role => {
+                                    return `
+                                        <tr>
+                                            <td><strong>${role.parliament_number || 'N/A'}</strong></td>
+                                            <td>${role.caucus_short_name || 'N/A'}</td>
+                                            <td>${formatDate(role.from_datetime)}</td>
+                                            <td>${formatDate(role.to_datetime)}</td>
+                                        </tr>
+                                    `;
+                                }).join('')}
+                            </tbody>
+                        </table>
+                    `;
+                    document.getElementById("caucusRolesSection").innerHTML = caucusHTML;
+                } else {
+                    document.getElementById("caucusRolesSection").innerHTML = '<p style="color: #999;">No caucus roles data available</p>';
+                }
 
                 document.getElementById("profileContent").style.display = "block";
             } catch (error) {
