@@ -196,6 +196,8 @@ parliament-dashboard/
 │       ├── member.html         # Member profile (unused standalone)
 │       └── scatter.html        # Scatter plot explorer
 
+```
+
 ---
 
 ## Data Coverage
