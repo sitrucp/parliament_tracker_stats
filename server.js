@@ -1298,10 +1298,18 @@ async function main() {
                 const preferred = [
                     'person_id','name','full_name','party','caucus_short_name','province','constituency',
                     'presence_rate','present','paired','absent','total_votes',
+                    'presence_rate_rank','presence_rate_percentile','presence_rate_percentile_in_party',
                     'tenure_months','years_in_house','elections_won',
+                    'tenure_months_rank','tenure_months_percentile','tenure_months_percentile_in_party',
                     'interventions_count','committee_interventions_count','bills_sponsored_current',
+                    'interventions_count_rank','interventions_count_percentile','interventions_count_percentile_in_party',
+                    'committee_interventions_count_rank','committee_interventions_count_percentile','committee_interventions_count_percentile_in_party',
+                    'bills_sponsored_current_rank','bills_sponsored_current_percentile','bills_sponsored_current_percentile_in_party',
                     'committees_count','associations_count',
-                    'activity_index_score','activity_index_rank','activity_index_percentile'
+                    'committees_count_rank','committees_count_percentile','committees_count_percentile_in_party',
+                    'associations_count_rank','associations_count_percentile','associations_count_percentile_in_party',
+                    'position_leadership_score','position_leadership_score_rank','position_leadership_score_percentile','position_leadership_score_percentile_in_party',
+                    'activity_index_score','activity_index_rank','activity_index_percentile','activity_index_score_percentile_in_party'
                 ];
                 const allKeys = new Set();
                 rows.forEach(r => Object.keys(r).forEach(k => allKeys.add(k)));
