@@ -34,7 +34,7 @@ The Parliament Analytics Dashboard performs three main functions:
 	 - Individual member profiles with detailed metrics
 	 - Scatter plot explorer for comparative analysis
 
-**See**: `METRICS_DOCUMENTATION.md` for complete methodology and metric definitions
+**See**: `docs/METRICS_DOCUMENTATION.md` for complete methodology and metric definitions
 
 ---
 
@@ -44,36 +44,57 @@ The dashboard includes two main pages:
 
 ### 1. Member List Table (`/`)
 
-**URL**: http://localhost:3001
+**URL**: http://localhost:3000 (or your configured port)
 
 **Features**:
 - Sortable columns (click header to sort by any metric)
 - Filter by party and province
 - Shows all 343 House members
-- Displays: Name, Party, Province, Presence %, Activity Index, Tenure, Interventions, Committee Work, Bills, Committees, Associations
-- Click any row to view detailed member profile (modal popup)
+- Displays: Name, Party, Province, Presence %, Activity Index, Leadership Score, Tenure, Interventions, Committee Work, Bills, Committees, Associations
+- Click any row to view detailed member profile
+- Deep-linkable: pass `?id=personId` in URL to auto-load a member profile
 
 ---
 
-### 2. Scatter Plot Explorer (`/scatter.html`)
+### 2. Member Profile Page (`/member.html`)
 
-**URL**: http://localhost:3001/scatter.html
+**URL**: http://localhost:3000/member.html
 
 **Features**:
-- Seven scatter plots comparing tenure against key metrics
-- Interactive zoom and pan
+- Searchable MP dropdown (alphabetically sorted, House members only) with live filtering
+- Comprehensive metric display: activity index, leadership score, presence rate, tenure, bills, committees, associations
+- Full rank and percentile information (overall + in-party)
+- Detailed sections: All Positions & Roles, Committee Memberships, Election History, Caucus Roles, Associations (with role mapping fallbacks)
+- Comparison to party and provincial averages with clear ✓ Above / ✗ Below indicators
+- Deep-linkable: pass `?id=personId` to auto-load a specific member
+
+---
+
+### 3. Scatter Plot Explorer (`/scatter.html`)
+
+**URL**: http://localhost:3000/scatter.html
+
+**Features**:
+- Scatter plots comparing tenure against key metrics
+- Interactive zoom and pan (per-chart reset button)
 - Hover on data points to see member details
 - Click data points to open detailed profile modal
 - Color-coded by political party
+- **Export**:
+	- Individual chart export: "💾 Export PNG" button (next to zoom reset)
+	- Batch export all charts: "📊 Export All Charts as PNG" button below filters
+	- Exported PNGs use chart title as filename (kebab-case) and white background
+- Inline filter layout (Parties and Provinces on single rows with inline Reset buttons; wraps on narrow screens)
 
 **Available Charts**:
-1. **Tenure vs Activity Index** — Composite engagement score
+1. **Tenure vs Activity Index** — Composite engagement score (updated weights)
 2. **Tenure vs Presence Rate** — Vote participation percentage
-3. **Tenure vs House Intervention Counts (Total)** — Floor debates and speeches
-4. **Tenure vs Committee Intervention Counts (Total)** — Committee interventions
-5. **Tenure vs Bills Sponsored** — Legislative initiative
-6. **Tenure vs Committees** — Number of committees serving on
-7. **Tenure vs Associations** — Parliamentary association memberships
+3. **Tenure vs Leadership Score** — Position-based leadership metric
+4. **Tenure vs House Intervention Counts** — Floor debates and speeches
+5. **Tenure vs Committee Intervention Counts** — Committee meeting contributions
+6. **Tenure vs Bills Sponsored** — Legislative initiative
+7. **Tenure vs Committees** — Committee memberships
+8. **Tenure vs Associations** — Parliamentary association memberships
 
 ---
 
@@ -104,7 +125,7 @@ npm start
 ```
 
 **What it serves:**
-- Web UI: http://localhost:3001
+- Web UI: http://localhost:3000 (or your configured port)
 - REST APIs for member metrics
 - Compute endpoint for analytics generation
 
@@ -153,7 +174,7 @@ npm run compute
 
 **Environment variables (optional):**
 ```bash
-PARLIAMENT=45 SESSION=1 SERVER_URL=http://localhost:3001 npm run compute
+PARLIAMENT=45 SESSION=1 SERVER_URL=http://localhost:3000 npm run compute
 ```
 
 ---
@@ -174,12 +195,6 @@ parliament-dashboard/
 │       ├── index.html          # Member list table
 │       ├── member.html         # Member profile (unused standalone)
 │       └── scatter.html        # Scatter plot explorer
-└── archive/                    # Documentation, legacy scripts (gitignored)
-		└── docs/
-				├── ACTIVITY_INDEX_METHODOLOGY.md
-				├── DEVELOPMENT_ROADMAP.md
-				└── MEMBER_STATS_SCHEMA.md
-```
 
 ---
 

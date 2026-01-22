@@ -13,6 +13,9 @@ etl-output.log
 # Ignore archived/deprecated files
 archive/
 
+# Ignore docs files
+docs/
+
 # Ignore environment configuration
 .env
 .env.local
