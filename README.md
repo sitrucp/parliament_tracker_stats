@@ -212,6 +212,14 @@ parliament-dashboard/
 **Committee Interventions**: ~5,630 committee meeting records  
 **Bills**: 125 bills introduced in session  
 
+### CSV Export
+
+The app exports member data + metrics as CSV via **`GET /api/export/members.csv`** (includes UTF-8 BOM for Excel compatibility).
+
+A sample export is committed to the repo at `house_members_data_csv_export/house_members_data_p45_s1.csv` showing structure and content. **For production use, download via the API endpoint** to ensure proper UTF-8 encoding when opening in Excel.
+
+**Note**: When downloading from GitHub's raw file viewer, the BOM may be stripped depending on the browser; the API endpoint always includes it.
+
 ---
 
 ## Chart Gallery
