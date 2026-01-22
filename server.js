@@ -1324,9 +1324,11 @@ async function main() {
                 }
 
                 const filename = `house_members_data_p${String(parliament)}_s${String(session)}.csv`;
-                res.setHeader('Content-Type', 'text/csv');
+                res.setHeader('Content-Type', 'text/csv; charset=utf-8');
                 res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-                res.status(200).send(lines.join('\n'));
+                // Prepend UTF-8 BOM to signal proper encoding to Excel
+                const bom = '\ufeff';
+                res.status(200).send(bom + lines.join('\n'));
             } catch (error) {
                 console.error("Error exporting CSV:", error.message);
                 res.status(500).json({ error: error.message });
