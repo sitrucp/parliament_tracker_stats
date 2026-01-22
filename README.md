@@ -220,20 +220,20 @@ Tap any thumbnail to open the full-size export.
 
 <table>
 	<tr>
-		<td><a href="chart_image_exports/tenure-vs-activity-index.png"><img src="chart_image_exports/tenure-vs-activity-index.png" alt="Tenure vs Activity Index" width="360"></a></td>
-		<td><a href="chart_image_exports/tenure-vs-house-presence-rate.png"><img src="chart_image_exports/tenure-vs-house-presence-rate.png" alt="Tenure vs House Presence Rate" width="360"></a></td>
+		<td><div><strong>tenure-vs-activity-index</strong><br><a href="chart_image_exports/tenure-vs-activity-index.png"><img src="chart_image_exports/tenure-vs-activity-index.png" alt="Tenure vs Activity Index" width="360"></a></div></td>
+		<td><div><strong>tenure-vs-house-presence-rate</strong><br><a href="chart_image_exports/tenure-vs-house-presence-rate.png"><img src="chart_image_exports/tenure-vs-house-presence-rate.png" alt="Tenure vs House Presence Rate" width="360"></a></div></td>
 	</tr>
 	<tr>
-		<td><a href="chart_image_exports/tenure-vs-leadership-score.png"><img src="chart_image_exports/tenure-vs-leadership-score.png" alt="Tenure vs Leadership Score" width="360"></a></td>
-		<td><a href="chart_image_exports/tenure-vs-house-intervention-counts-total.png"><img src="chart_image_exports/tenure-vs-house-intervention-counts-total.png" alt="Tenure vs House Intervention Counts Total" width="360"></a></td>
+		<td><div><strong>tenure-vs-leadership-score</strong><br><a href="chart_image_exports/tenure-vs-leadership-score.png"><img src="chart_image_exports/tenure-vs-leadership-score.png" alt="Tenure vs Leadership Score" width="360"></a></div></td>
+		<td><div><strong>tenure-vs-house-intervention-counts-total</strong><br><a href="chart_image_exports/tenure-vs-house-intervention-counts-total.png"><img src="chart_image_exports/tenure-vs-house-intervention-counts-total.png" alt="Tenure vs House Intervention Counts Total" width="360"></a></div></td>
 	</tr>
 	<tr>
-		<td><a href="chart_image_exports/tenure-vs-committee-intervention-counts-total.png"><img src="chart_image_exports/tenure-vs-committee-intervention-counts-total.png" alt="Tenure vs Committee Intervention Counts Total" width="360"></a></td>
-		<td><a href="chart_image_exports/tenure-vs-bills-sponsored.png"><img src="chart_image_exports/tenure-vs-bills-sponsored.png" alt="Tenure vs Bills Sponsored" width="360"></a></td>
+		<td><div><strong>tenure-vs-committee-intervention-counts-total</strong><br><a href="chart_image_exports/tenure-vs-committee-intervention-counts-total.png"><img src="chart_image_exports/tenure-vs-committee-intervention-counts-total.png" alt="Tenure vs Committee Intervention Counts Total" width="360"></a></div></td>
+		<td><div><strong>tenure-vs-bills-sponsored</strong><br><a href="chart_image_exports/tenure-vs-bills-sponsored.png"><img src="chart_image_exports/tenure-vs-bills-sponsored.png" alt="Tenure vs Bills Sponsored" width="360"></a></div></td>
 	</tr>
 	<tr>
-		<td><a href="chart_image_exports/tenure-vs-committees.png"><img src="chart_image_exports/tenure-vs-committees.png" alt="Tenure vs Committees" width="360"></a></td>
-		<td><a href="chart_image_exports/tenure-vs-associations.png"><img src="chart_image_exports/tenure-vs-associations.png" alt="Tenure vs Associations" width="360"></a></td>
+		<td><div><strong>tenure-vs-committees</strong><br><a href="chart_image_exports/tenure-vs-committees.png"><img src="chart_image_exports/tenure-vs-committees.png" alt="Tenure vs Committees" width="360"></a></div></td>
+		<td><div><strong>tenure-vs-associations</strong><br><a href="chart_image_exports/tenure-vs-associations.png"><img src="chart_image_exports/tenure-vs-associations.png" alt="Tenure vs Associations" width="360"></a></div></td>
 	</tr>
 </table>
 
