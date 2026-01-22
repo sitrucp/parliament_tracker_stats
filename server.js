@@ -1308,8 +1308,14 @@ async function main() {
                     'committees_count','associations_count',
                     'committees_count_rank','committees_count_percentile','committees_count_percentile_in_party',
                     'associations_count_rank','associations_count_percentile','associations_count_percentile_in_party',
+                    // Leadership (score-based + legacy names)
                     'position_leadership_score','position_leadership_score_rank','position_leadership_score_percentile','position_leadership_score_percentile_in_party',
-                    'activity_index_score','activity_index_rank','activity_index_percentile','activity_index_score_percentile_in_party'
+                    'position_leadership_rank','position_leadership_percentile',
+                    // Activity index (score-based + legacy names)
+                    'activity_index_score','activity_index_rank','activity_index_percentile','activity_index_score_rank','activity_index_score_percentile','activity_index_score_percentile_in_party',
+                    // Misc / derived
+                    'committee_per_month','interventions_per_month',
+                    'chamber','political_alignment_score','computed_at','metrics_version'
                 ];
                 const allKeys = new Set();
                 rows.forEach(r => Object.keys(r).forEach(k => allKeys.add(k)));
